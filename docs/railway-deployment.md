@@ -20,7 +20,9 @@ AI initially uses `AI_PROVIDER=off`. Enable it by setting the existing backend A
 
 Gmail requires `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` and the generated `EMAIL_TOKEN_KEY`. Register `https://nudgewise-production.up.railway.app/api/email/callback` as an authorized redirect URI in Google, set `GMAIL_REDIRECT_URI` to that URL in Railway, then connect Gmail through Settings. Existing local OAuth sessions are not uploaded. Mailpit is not used by the current Gmail implementation.
 
-OCR models may download on first use. CPU OCR needs sufficient service memory and may take longer than local processing. Configure database backups in Railway before relying on it for business data; persistent volumes alone are not backups.
+Text-only customer/image/PDF intake uses RapidOCR directly with two CPU threads. Docling table extraction still needs more than this plan's 1 GB memory limit; upgrade host memory for table uploads. RapidOCR is pinned to 3.9.1 because 3.10.0 removed an API needed by Docling 2.133.0. Run `python tests/ocr-smoke.py` in the OCR Python environment for synthetic PNG/PDF and upload-limit checks.
+
+Configure database backups in Railway before relying on it for business data; persistent volumes alone are not backups.
 
 ## Deploy updates
 

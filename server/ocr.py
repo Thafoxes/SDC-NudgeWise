@@ -10,6 +10,7 @@ with redirect_stdout(sys.stderr):
     if source.stat().st_size > 10 * 1024 * 1024:
         raise ValueError('Document exceeds 10 MiB')
     if '--tables' in sys.argv:
+        # shortcut: Docling table extraction exceeds 1 GB; use a larger host for table uploads.
         from docling.document_converter import DocumentConverter, PdfFormatOption, ImageFormatOption
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
@@ -28,7 +29,10 @@ with redirect_stdout(sys.stderr):
         from PIL import Image
         from rapidocr import RapidOCR
 
-        engine = RapidOCR()
+        engine = RapidOCR(params={
+            'EngineConfig.onnxruntime.intra_op_num_threads': 2,
+            'EngineConfig.onnxruntime.inter_op_num_threads': 2,
+        })
         def read_image(image):
             result = engine(np.asarray(image.convert('RGB')))
             return '\n'.join(result.txts or [])
@@ -40,13 +44,15 @@ with redirect_stdout(sys.stderr):
                     raise ValueError('Document exceeds five pages')
                 pages = []
                 for page in document:
-                    with page:
+                    try:
                         bitmap = page.render(scale=1.5)
                         try:
                             with bitmap.to_pil() as image:
                                 pages.append(read_image(image))
                         finally:
                             bitmap.close()
+                    finally:
+                        page.close()
                 text = '\n\n'.join(pages)
         else:
             with Image.open(source) as image:
