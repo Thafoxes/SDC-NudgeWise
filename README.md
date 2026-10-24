@@ -23,7 +23,7 @@ Start with [local setup](#local-setup) to run the app, the [workflow manual](doc
 | Source repository | [SDC-NudgeWise](https://github.com/Thafoxes/SDC-NudgeWise) |
 | Live Demo         | https://nudgewise-production.up.railway.app/              |
 | Slides | https://canva.link/jg055mv4dvbzpgc |
-| Demo Video        | https://example.com/demo-video                 |
+| Demo Video        | https://youtu.be/V7hNoXaBXlE               |
 
 
 ## Overview
