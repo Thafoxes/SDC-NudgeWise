@@ -42,7 +42,7 @@ npm run dev
 
 Open http://localhost:5173. The backend defaults to http://127.0.0.1:8787; Vite proxies `/api` there. SQLite data and original PO evidence are stored in `.local-data/demo.sqlite`. Do not commit `.env`, databases, backups, or original business documents.
 
-`npm start` builds the frontend and starts the backend, which serves the built frontend too. Setting `PORT` makes the server listen on all interfaces and requires `DEMO_ACCESS_KEY`; this shared demo passcode is not production user authentication. Restart the backend after changing server settings and restart Vite after changing `VITE_*` settings.
+`npm start` builds the frontend and starts the backend, which serves the built frontend too. Setting `PORT` makes the server listen on all interfaces and requires `DEMO_ACCESS_KEY`; this shared demo passcode is not production user authentication. Set `PUBLIC_DEMO=true` only to deliberately allow anyone to read/edit a shared demo without a passcode. Restart the backend after changing server settings and restart Vite after changing `VITE_*` settings.
 
 ## Runpod Ollama
 
@@ -74,7 +74,7 @@ The database user needs the permissions required by the adapter's schema setup a
 
 ## OCR and AI
 
-Document extraction runs **local Docling Python**, not the Docling MCP server. Docling uses RapidOCR and exports text to the Node process. The first conversion may download OCR/layout models. Customer, PO and quick-sale order extraction accept PDF, PNG and JPEG, up to 10 MiB and five pages. Quick-sale extraction proposes items and explicit prices for seller review. Payment-receipt uploads use a separate evidence-only route: they retain PDF/PNG/JPEG originals up to 10 MiB without OCR or cloud AI.
+Document extraction runs **local Python**, not the Docling MCP server. Text-only intake uses RapidOCR directly to fit memory-limited hosts; table extraction uses Docling with RapidOCR. The first table conversion may download layout models. Customer, PO and quick-sale order extraction accept PDF, PNG and JPEG, up to 10 MiB and five pages. Quick-sale extraction proposes items and explicit prices for seller review. Payment-receipt uploads use a separate evidence-only route: they retain PDF/PNG/JPEG originals up to 10 MiB without OCR or cloud AI.
 
 The configured Ollama model turns OCR text into proposed fields. Cloud mode sends the extracted text to the configured Ollama endpoint. Never put API keys in `VITE_*` variables.
 

@@ -6,8 +6,9 @@ const digest = value => createHash('sha256').update(String(value)).digest();
 const equal = (a, b) => timingSafeEqual(digest(a), digest(b));
 
 function createAccessGuard() {
-  const key = process.env.DEMO_ACCESS_KEY || '';
-  const publicKeyMissing = !!process.env.PORT && !key.trim();
+  const publicDemo = process.env.PUBLIC_DEMO === 'true';
+  const key = publicDemo ? '' : process.env.DEMO_ACCESS_KEY || '';
+  const publicKeyMissing = !!process.env.PORT && !key.trim() && !publicDemo;
   let attempts = 0, windowEnds = 0;
   const sign = payload => createHmac('sha256', key).update(payload).digest('hex');
   function authenticated(req) {

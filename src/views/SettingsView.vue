@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed,reactive,ref,watch } from 'vue';
+import EmailSettings from '@/components/EmailSettings.vue';
+import EmailPhase8 from '@/components/EmailPhase8.vue';
 import { DEMO_COMPANY_PROFILE } from '@/lib/companyProfile';
 import { useDemoStore } from '@/composables/useDemoStore';
 import { DEMO_BUSINESS_ID,DEMO_SELLER_ID } from '@/lib/store';
@@ -37,5 +39,7 @@ async function save(){
    <p v-if="error" role="alert" class="text-sm text-rose-700">{{error}}</p><p v-if="notice" role="status" class="text-sm text-emerald-700">{{notice}}</p>
    <button type="submit" class="primary-btn" :disabled="busy||seller?.role!=='seller'">{{busy?'Saving…':'Save settings'}}</button>
   </form>
+  <EmailSettings />
+  <EmailPhase8 />
  </div>
 </template>

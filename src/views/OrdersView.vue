@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Eye, Pencil, Trash2 } from 'lucide-vue-next';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import CustomerIntake from '@/components/CustomerIntake.vue';
 import PurchaseOrderForm from '@/components/PurchaseOrderForm.vue';
 import OrderWorkspace from '@/components/OrderWorkspace.vue';
@@ -28,8 +28,13 @@ const eligibility = computed(() => {
   void data.value;
   return customerId.value ? getOrderEligibility(customerId.value, DEMO_BUSINESS_ID) : null;
 });
-const orders = computed(() => data.value.purchaseOrders.filter(order => order.business_id === DEMO_BUSINESS_ID));
+const route = useRoute();
+const orderType = computed(()=>route.query.type==='po'?'po':route.query.type==='direct'?'direct':'all');
+const orders = computed(() => data.value.purchaseOrders.filter(order => order.business_id === DEMO_BUSINESS_ID && (orderType.value==='all'||(orderType.value==='direct'?order.source_mode==='quick_sale':order.source_mode!=='quick_sale'))));
 const query=ref(''),nextStepFilter=ref('all');
+// Compact is the default HMI view; detail view retains every requested stage column.
+const listView=ref<'simple'|'detailed'>('simple');
+
 const nextStepOptions=[{value:'all',label:'All next steps'},{value:'blocked',label:'Blocked / needs review'},...STAGE_KEYS.map(key=>({value:key,label:STAGE_NAMES[key]})),{value:'completed',label:'Completed'}];
 const filteredOrders=computed(()=>orders.value.filter(o=>[o.reference, customerName(o.customer_id)].some(t=>t.toLowerCase().includes(query.value.toLowerCase()))));
 const customerSearch = ref('');
@@ -37,6 +42,8 @@ const availableCustomers=computed(()=>data.value.customers.filter(c=>c.business_
 const screenshot=ref<ChatOrderUpload|null>(null);
 const suggestion = ref<CustomerExtraction>();
 const formDirty = ref(false);
+onBeforeRouteLeave(()=> !formDirty.value || window.confirm('Your order has unsaved changes. Leave without saving?'));
+
 const savedRevision = ref(0);
 const intakeKey = ref(0);
 const reason = ref('');
@@ -65,7 +72,6 @@ function closeEditor() { showEditor.value = false; selectCustomer(null); screens
 
 const error = ref('');
 const notice = ref('');
-const route = useRoute();
 const router = useRouter();
 const recordId = computed(() => typeof route.params.id === 'string' ? route.params.id : '');
 const recordPage = computed(() => !!recordId.value);
@@ -162,8 +168,24 @@ function orderProgress(order: PurchaseOrder) {
     invoice:inv?computeInvoiceWithCustomer(inv,d,d.demoState.simulated_date):null,
     receiptCount:d.settlementReceipts.filter(r=>r.purchase_order_id===order.id).length,finalReceiptIssued:!!inv&&hasCurrentFinalReceipt(inv,d),completionConfirmed:!!order.completed_at&&order.completion_key===inv?.final_receipt?.financial_key,
     criticalBlockers:deriveOrderBlockers(order.id).filter(b=>b.critical).length,money:formatMYR});
-  return { next:nextStage(stages), summary: stageSummary(stages), buyerPo: hasBuyerPo({order,evidence}) };
+  return { next:nextStage(stages), summary: stageSummary(stages), buyerPo: hasBuyerPo({order,evidence}),stages };
 }
+function progressBadge(stages:ReturnType<typeof orderStages>,key:'order'|'quotation'|'invoice'|'payment'|'receipt',order:PurchaseOrder){
+ if(order.source_mode==='quick_sale'&&(key==='order'||key==='quotation'))return {label:'Not required',state:'skipped' as StageState};
+ const stage=stages.find(s=>s.key===key);
+ if(!stage)return {label:'Unavailable',state:'todo' as StageState};
+ if(stage.state==='skipped')return {label:'Not required',state:'skipped' as StageState};
+ if(stage.state==='blocked')return {label:'Blocked',state:'blocked' as StageState};
+ if(stage.state==='done')return {label:key==='payment'?'Paid':'Done',state:'done' as StageState};
+ if(key==='payment'){
+  if(stage.detail.includes('Part paid'))return {label:'Partially paid',state:stage.state};
+  if(stage.detail.includes('Verify'))return {label:'Verification pending',state:stage.state};
+  return {label:'Unpaid',state:stage.state};
+ }
+ if(key==='quotation'&&stage.detail.toLowerCase().includes('buyer'))return {label:'Pending approval',state:stage.state};
+ return {label:stage.state==='current'?'In progress':'Unavailable',state:stage.state};
+}
+const progressColumns=['order','quotation','invoice','payment','receipt'] as const;
 const progressRows=computed(()=>filteredOrders.value.map(order=>({order,...orderProgress(order)})));
 const rows=computed(()=>progressRows.value.filter(row=>matchesOrderNextStep(row.next,nextStepFilter.value)));
 function nextStepCount(filter:string){return progressRows.value.filter(row=>matchesOrderNextStep(row.next,filter)).length;}
@@ -185,7 +207,37 @@ function customerName(id: string) {
     <p v-if="recordPage && !activeOrder" class="card p-4 text-rose-700">Order not found.</p>
     <div v-if="!recordPage" class="flex flex-wrap justify-between items-center gap-3"><p class="text-sm text-slate-600">Start a new order from a chat or by hand, or start from a PO the buyer already sent. The seller confirms every step.</p><div class="flex gap-2"><button type="button" class="primary-btn" :disabled="busy" @click="startOrder('create')">+ New order</button><button type="button" class="outline-btn" :disabled="busy" @click="startOrder('upload')">Start from buyer's PO</button></div></div>
     <p v-if="error" role="alert" class="text-sm text-rose-700">{{error}}</p><p v-if="notice" role="status" class="text-sm text-emerald-700">{{notice}}</p>
-    <section v-if="!recordPage" class="card overflow-hidden" aria-label="Order list"><div class="px-4 py-3 border-b border-slate-100 flex flex-wrap justify-between gap-2"><h2 class="font-semibold">Orders <span class="text-xs font-normal text-slate-500">{{rows.length}} of {{orders.length}}</span></h2><label class="text-xs text-slate-600">Next step<select v-model="nextStepFilter" aria-label="Filter orders by next step" class="form-input !mt-0"><option v-for="option in nextStepOptions" :key="option.value" :value="option.value">{{option.label}} ({{nextStepCount(option.value)}})</option></select></label><input v-model="query" aria-label="Search orders" placeholder="Search order, PO or customer..." class="form-input !mt-0 max-w-xs" /></div><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-slate-50 text-left text-slate-600"><tr><th class="p-3">Reference</th><th class="p-3">Customer</th><th class="p-3">Date</th><th class="p-3">Amount</th><th class="p-3">Buyer PO</th><th class="p-3">Next step</th><th class="p-3">Approval</th><th class="p-3">Action</th></tr></thead><tbody><tr v-for="{order,summary,buyerPo} in rows" :key="order.id" class="border-t"><td class="p-3 font-medium">{{ order.reference }}</td><td class="p-3">{{ customerName(order.customer_id) }}</td><td class="p-3">{{order.created_at.slice(0,10)}}</td><td class="p-3">{{orderAmount(order)===null?'To be priced':formatMYR(orderAmount(order)!)}}</td><td class="p-3">{{ buyerPo ? 'On file' : '—' }}</td><td class="p-3"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap" :class="stageChip[summary.state]">{{ summary.label }}</span></td><td class="p-3 capitalize">{{ order.status }}</td><td class="p-3"><div class="flex items-center gap-2"><button type="button" class="rounded p-1.5 text-slate-700 hover:bg-slate-100" :aria-label="`View order ${order.reference}`" title="View order" @click="router.push(`/orders/${encodeURIComponent(order.id)}/view`)"><Eye class="h-4 w-4" /></button><button type="button" class="rounded p-1.5 text-blue-700 hover:bg-blue-50 disabled:opacity-50" :disabled="busy" :aria-label="`Edit order ${order.reference}`" title="Edit order" @click="router.push(`/orders/${encodeURIComponent(order.id)}/edit`)"><Pencil class="h-4 w-4" /></button><button type="button" class="rounded p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-40" :disabled="busy" :aria-label="`Delete order ${order.reference}`" title="Delete draft order" @click="removeOrder(order)"><Trash2 class="h-4 w-4" /></button></div></td></tr><tr v-if="!rows.length"><td colspan="8" class="p-4 text-slate-500"><template v-if="orders.length">No orders match your search and next-step filter. <button type="button" class="text-blue-700 underline" @click="clearFilters">Clear filters</button></template><template v-else>No orders yet. Start a new order, or start from a buyer's PO.</template></td></tr></tbody></table></div></section>
+    <section v-if="!recordPage" class="card overflow-hidden" aria-label="Order list">
+      <div class="px-4 py-4 border-b border-slate-100 space-y-3">
+       <div class="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 class="text-base font-semibold">{{orderType==='po'?'Purchase Orders':orderType==='direct'?'Direct Orders':'All Orders'}}</h2>
+         <p class="text-xs text-slate-600">{{rows.length}} of {{orders.length}} orders · Open a row to see documents and approvals.</p></div>
+        <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Order table view">
+         <button type="button" class="rounded-md px-3 py-2 text-xs font-semibold" :class="listView==='simple'?'bg-blue-700 text-white':'text-slate-700'" :aria-pressed="listView==='simple'" @click="listView='simple'">Simple view</button>
+         <button type="button" class="rounded-md px-3 py-2 text-xs font-semibold" :class="listView==='detailed'?'bg-blue-700 text-white':'text-slate-700'" :aria-pressed="listView==='detailed'" @click="listView='detailed'">Detailed view</button>
+        </div>
+       </div>
+       <div class="flex flex-wrap gap-3 items-end justify-between">
+        <label class="text-xs text-slate-700">Next step<select v-model="nextStepFilter" aria-label="Filter orders by next step" class="form-input !mt-1"><option v-for="option in nextStepOptions" :key="option.value" :value="option.value">{{option.label}} ({{nextStepCount(option.value)}})</option></select></label>
+        <label class="text-xs text-slate-700 flex-1 min-w-[200px] max-w-sm">Search orders<input v-model="query" aria-label="Search orders" placeholder="Order, customer, PO reference..." class="form-input !mt-1" /></label>
+       </div>
+      </div>
+      <div v-if="listView==='simple'" class="space-y-0">
+       <div v-for="{order,summary,stages} in rows" :key="order.id" class="border-b border-slate-100 px-4 py-4 last:border-b-0 hover:bg-slate-50">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+         <div class="min-w-0 space-y-1"><button type="button" class="text-left font-semibold text-blue-800 hover:underline" @click="router.push(`/orders/${encodeURIComponent(order.id)}/view`)">{{order.reference}}</button><p class="text-sm text-slate-700">{{customerName(order.customer_id)}}</p><p class="text-xs text-slate-500">{{order.source_mode==='quick_sale'?'Direct order':'PO-based order'}} · {{order.created_at.slice(0,10)}}</p></div>
+         <div class="flex flex-wrap items-center gap-3"><strong class="text-sm">{{orderAmount(order)===null?'To be priced':formatMYR(orderAmount(order)!)}}</strong><span class="rounded-full px-3 py-1 text-xs font-semibold" :class="stageChip[summary.state]">{{summary.label}}</span><button type="button" class="primary-btn" @click="router.push(`/orders/${encodeURIComponent(order.id)}/view`)">Review →</button></div>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-1.5" aria-label="Document progress">
+         <span v-for="column in progressColumns" :key="column" class="rounded-md border border-slate-200 px-2 py-1 text-[11px]" :class="stageChip[progressBadge(stages,column,order).state]">{{column==='order'?'PO':column}}: {{progressBadge(stages,column,order).label}}</span>
+        </div>
+       </div>
+       <div v-if="!rows.length" class="p-5 text-sm text-slate-600">No matching orders. <button type="button" class="text-blue-700 underline" @click="clearFilters">Clear filters</button></div>
+      </div>
+      <div v-else>
+<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-slate-50 text-left text-slate-600"><tr><th class="p-3">Reference</th><th class="p-3">Customer</th><th v-for="column in progressColumns" :key="column" class="p-3 capitalize">{{column==='order'?'PO':column}}</th><th class="p-3">Date</th><th class="p-3">Amount</th><th class="p-3">Buyer PO</th><th class="p-3">Next step</th><th class="p-3">Approval</th><th class="p-3">Action</th></tr></thead><tbody><tr v-for="{order,summary,buyerPo,stages} in rows" :key="order.id" class="border-t"><td class="p-3 font-medium">{{ order.reference }}</td><td class="p-3">{{ customerName(order.customer_id) }}</td><td v-for="column in progressColumns" :key="column" class="p-3"><span class="inline-flex rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap" :class="stageChip[progressBadge(stages,column,order).state]">{{progressBadge(stages,column,order).label}}</span></td><td class="p-3">{{order.created_at.slice(0,10)}}</td><td class="p-3">{{orderAmount(order)===null?'To be priced':formatMYR(orderAmount(order)!)}}</td><td class="p-3">{{ buyerPo ? 'On file' : '—' }}</td><td class="p-3"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap" :class="stageChip[summary.state]">{{ summary.label }}</span></td><td class="p-3 capitalize">{{ order.status }}</td><td class="p-3"><div class="flex items-center gap-2"><button type="button" class="rounded p-1.5 text-slate-700 hover:bg-slate-100" :aria-label="`View order ${order.reference}`" title="View order" @click="router.push(`/orders/${encodeURIComponent(order.id)}/view`)"><Eye class="h-4 w-4" /></button><button type="button" class="rounded p-1.5 text-blue-700 hover:bg-blue-50 disabled:opacity-50" :disabled="busy" :aria-label="`Edit order ${order.reference}`" title="Edit order" @click="router.push(`/orders/${encodeURIComponent(order.id)}/edit`)"><Pencil class="h-4 w-4" /></button><button type="button" class="rounded p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-40" :disabled="busy" :aria-label="`Delete order ${order.reference}`" title="Delete draft order" @click="removeOrder(order)"><Trash2 class="h-4 w-4" /></button></div></td></tr><tr v-if="!rows.length"><td colspan="14" class="p-4 text-slate-500"><template v-if="orders.length">No orders match your search and next-step filter. <button type="button" class="text-blue-700 underline" @click="clearFilters">Clear filters</button></template><template v-else>No orders yet. Start a new order, or start from a buyer's PO.</template></td></tr></tbody></table></div>
+      </div>
+    </section>
     <div v-if="showEditor && (!recordPage || activeOrder)" class="space-y-5"><div class="flex justify-between items-center"><h2 class="text-lg font-semibold">{{ activeOrder ? 'Order — ' + activeOrder.reference : editorMode === 'upload' ? 'Start from buyer\'s PO' : 'New order' }}</h2><button type="button" class="outline-btn" @click="recordPage ? router.push('/orders') : closeEditor()">Close</button></div>
     <p v-if="editorMode === 'upload' && !activeOrder" class="text-sm text-blue-800 bg-blue-50 rounded p-3">Upload the buyer's PO to read its items and terms. You confirm the details; NudgeWise keeps the original and does not create a replacement PO.</p>
     <section class="card p-4 space-y-3" v-if="!activeOrder"><label class="text-sm font-semibold">Select existing customer <span class="text-rose-700">*</span></label>
@@ -195,7 +247,7 @@ function customerName(id: string) {
       </select><p v-if="!availableCustomers.length" class="text-xs text-slate-500">No matching customers. Try another name or add a new customer.</p><details><summary class="text-blue-700 cursor-pointer text-sm">+ Add a customer or search more options</summary>
       <CustomerIntake :key="intakeKey" :suggestion="suggestion" @selected="selectCustomer" /></details>
     </section>
-    <section v-if="customer && eligibility" id="stage-order" class="scroll-mt-48 lg:scroll-mt-28 card p-4 sm:p-5 space-y-4" aria-label="Order eligibility">
+    <section v-if="customer && eligibility && !activeOrder" id="stage-order" class="scroll-mt-48 lg:scroll-mt-28 card p-4 sm:p-5 space-y-4" aria-label="Order eligibility">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div><h2 class="text-base font-semibold text-slate-900">{{ customer.name }}</h2><p class="mt-1 text-sm text-slate-600">{{ customer.phone }} · {{ customer.email || 'No billing email' }}</p></div>
         <span class="rounded px-2.5 py-1 text-xs font-medium" :class="eligibility.allowed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">{{ eligibility.allowed ? 'Eligible for a new order' : 'Order hold' }}</span>
@@ -207,6 +259,13 @@ function customerName(id: string) {
           <li v-for="blocker in eligibility.blockers" :key="blocker.invoice_id"><strong>{{ blocker.invoice_number }}</strong> · {{ formatMYR(blocker.balance) }} outstanding<br />{{ blocker.reason }}</li>
         </ul>
       </div>
+      <p v-if="error" role="alert" class="text-sm text-rose-700">{{ error }}</p>
+      <p v-if="notice" role="status" class="text-sm text-emerald-700">{{ notice }}</p>
+    </section>
+    <OrderWorkspace v-if="activeOrder" :key="activeOrder.id" :order="activeOrder">
+     <template #order-approval>
+      <div class="space-y-3">
+       <p v-if="!eligibility?.allowed" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Customer has unresolved order eligibility blockers. Seller override must be justified.</p>
       <div v-if="activeOrder" class="border-t border-slate-100 pt-4 space-y-3">
         <p class="text-sm text-slate-700"><strong>{{ activeOrder.reference }}</strong> · {{ activeOrder.status === 'approved' ? 'Approved' : 'Draft — awaiting approval' }}</p>
         <form v-if="activeOrder.status === 'draft' && (!recordPage || recordMode === 'edit')" class="space-y-3" @submit.prevent="approve">
@@ -224,13 +283,12 @@ function customerName(id: string) {
           <p>This approval does not clear previous disputes or apply to future orders.</p>
         </div>
       </div>
-      <p v-if="error" role="alert" class="text-sm text-rose-700">{{ error }}</p>
-      <p v-if="notice" role="status" class="text-sm text-emerald-700">{{ notice }}</p>
-    </section>
-    <OrderWorkspace v-if="activeOrder" :key="activeOrder.id" :order="activeOrder" />
-    <details v-if="activeOrder && (!recordPage || recordMode === 'edit')" class="card p-4"><summary class="font-semibold cursor-pointer">{{activeOrder.status==='approved'?'View order details':'Edit order details'}}</summary>
-     <PurchaseOrderForm :order="activeOrder" :mode="editorMode" :customer="customer" :saving="busy" :saved-revision="savedRevision" @save="saveDraft" @buyer="suggestion=$event" @dirty="formDirty=$event" @screenshot="screenshot=$event" />
-    </details>
+       <details v-if="!recordPage || recordMode === 'edit'" class="rounded-lg border p-4"><summary class="font-semibold cursor-pointer">{{activeOrder.status==='approved'?'View order details':'Edit order details'}}</summary>
+        <PurchaseOrderForm :order="activeOrder" :mode="editorMode" :customer="customer" :saving="busy" :saved-revision="savedRevision" @save="saveDraft" @buyer="suggestion=$event" @dirty="formDirty=$event" @screenshot="screenshot=$event" />
+       </details>
+      </div>
+     </template>
+    </OrderWorkspace>
     <PurchaseOrderForm v-else :mode="editorMode" :customer="customer" :saving="busy" :saved-revision="savedRevision" @save="saveDraft" @buyer="suggestion=$event" @dirty="formDirty=$event" @screenshot="screenshot=$event" />
     </div>
     <p class="text-xs text-slate-500">Seller demo: approvals are recorded under the demo seller. Individual authenticated seller accounts are required before production use.</p>

@@ -6,6 +6,7 @@ import {hasCurrentFinalReceipt,settlementBlockers,orderCompletionBlockers} from 
 import {invoiceDocument} from '@/lib/invoiceDocuments';
 import {viewDocumentPdf,downloadDocumentPdf} from '@/lib/documentPdf';
 import {issueFinalReceipt,completeOrder} from '@/services/commands';
+import EmailDocumentSend from '@/components/EmailDocumentSend.vue';
 const props=defineProps<{invoiceId:string;sellerName:string;sellerRole:string}>();
 const {data,refreshStore}=useDemoStore();
 const invoice=computed(()=>data.value.invoices.find(i=>i.id===props.invoiceId));
@@ -36,6 +37,8 @@ async function finish(){if(!order.value||busy.value)return;
   <div class="flex flex-wrap gap-2"><button type="button" class="outline-btn" @click="pdf('invoice')">View / print invoice PDF</button><button type="button" class="outline-btn" @click="pdf('invoice',true)">Download invoice PDF</button></div>
   <div v-if="proof.length" class="space-y-1"><p class="text-xs font-semibold text-slate-600">Payment attachments (supporting evidence only)</p><a v-for="file in proof" :key="file.id" :href="`/api/po-evidence/${file.id}`" target="_blank" rel="noopener" class="block text-sm text-blue-700 underline">View {{file.filename}}</a></div>
   <div v-if="invoice.final_receipt" class="space-y-2"><p class="text-xs text-slate-600">{{invoice.final_receipt.number}} · {{receiptCurrent?'Current settlement':'Previous settlement — balance changed'}}</p><div class="flex flex-wrap gap-2"><button type="button" class="outline-btn" @click="pdf('final_receipt')">View / print final receipt</button><button type="button" class="outline-btn" @click="pdf('final_receipt',true)">Download final receipt</button></div></div>
+  <EmailDocumentSend kind="invoice" :record-id="invoice.id" />
+  <EmailDocumentSend v-if="invoice.final_receipt" kind="receipt" :record-id="invoice.id" />
   <template v-if="!receiptCurrent">
    <p v-if="view.outstanding_balance>0" class="text-sm text-slate-600">Record verified payments for the remaining balance first. Unverified screenshots or claims do not issue a final receipt.</p>
    <ul v-else-if="blockers.length" class="list-disc pl-5 text-sm text-amber-800"><li v-for="reason in blockers" :key="reason">{{reason}}</li></ul>
