@@ -521,7 +521,7 @@ CREATE TABLE IF NOT EXISTS `follow_up_actions` (
   `send_state` VARCHAR(20) NOT NULL DEFAULT 'not_sent',
   `recipient_email` VARCHAR(254) NULL,
   `sent_at` DATETIME NULL,
-  `delivery_status` VARCHAR(40) NULL,
+  `delivery_status` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

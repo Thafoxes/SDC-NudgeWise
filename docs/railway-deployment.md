@@ -4,9 +4,11 @@ The Vue build and Node API run in the same `nudgewise` service. The Dockerfile b
 
 Project: https://railway.com/project/ab8a0a42-9f9c-4b49-b043-4db73ec154bc
 
+The repository includes [`railway.toml`](../railway.toml), which selects the Dockerfile builder and starts `node server/app.cjs`. The Railway service root directory must be the repository root (`/`); do not set it to `server`, because the Dockerfile and Node package manifest are at the root.
+
 ## Storage and access
 
-Railway's pre-deploy command is `node server/init-schema.cjs`. It imports the schema-only SQL when MariaDB has no tables, and leaves databases with existing tables untouched. The adapter creates its runtime snapshot/evidence tables on startup. Partially initialized or incompatible databases require explicit repair.
+Railway's pre-deploy command is `node server/init-schema.cjs`. It imports the schema-only SQL when MariaDB has no tables. Existing databases receive the idempotent `delivery_status` migration from `VARCHAR` to `TEXT`, preserving full reminder cancellation explanations and existing rows. The adapter creates its runtime snapshot/evidence tables on startup. Other partially initialized or incompatible databases require explicit repair.
 
 - `mariadb`: persistent volume at `/var/lib/mysql`; no public database endpoint.
 - `nudgewise`: persistent volume at `/app/.local-data` for email state, OAuth tokens and model cache.
@@ -33,3 +35,5 @@ railway up --project ab8a0a42-9f9c-4b49-b043-4db73ec154bc --environment 1e479b2a
 ```
 
 Check that deployment's status in Railway; upload completion alone does not confirm a running app. The health check is `/api/access`. Local uploads do not enable automatic deployment on Git pushes.
+
+If Railway reports `No start command detected` and mentions Python/Railpack, the service is not using the repository root or the Dockerfile builder. Set the service's root directory to `/`, set the builder to **Dockerfile**, and redeploy. The committed `railway.toml` applies those settings for source-based deployments from this repository.

@@ -12,6 +12,28 @@ const po = require('../.server-build/lib/purchaseOrder.js');
 const workflow = require('../.server-build/lib/orderWorkflow.js');
 
 const actor=['Seller','seller','biz-001'];
+
+test('confirmed promise preserves its full cancellation reason in the MariaDB schema',()=>{
+  let raw;
+  store.configureStorage({getItem:()=>raw??null,setItem:(_,value)=>{raw=value;}});
+  store.getStore();
+  require('./fixtures/load-business-data.cjs')(store);
+  const before=store.getStore();
+  const followUp=before.followUpActions.find(f=>f.send_state==='not_sent'&&f.approval_state==='pending');
+  assert.ok(followUp);
+  const invoice=before.invoices.find(i=>i.id===followUp.invoice_id);
+  const dueDate=invoice.due_date;
+  const paymentCount=before.payments.length;
+  const seller=before.users.find(u=>u.business_id===invoice.business_id&&u.role==='seller');
+  assert.equal(require('../.server-build/lib/actions.js').confirmPromise(invoice.id,before.demoState.simulated_date,true,seller.name,invoice.business_id).success,true);
+  const projected=projectState(store.getStore()).follow_up_actions.find(f=>f.id===followUp.id);
+  assert.equal(projected.delivery_status,'Confirmed promise-to-pay supersedes reminder');
+  assert.ok(projected.delivery_status.length>40);
+  assert.equal(store.getStore().invoices.find(i=>i.id===invoice.id).due_date,dueDate);
+  assert.equal(store.getStore().payments.length,paymentCount);
+  const schema=fs.readFileSync(path.join(__dirname,'../database/MARIADB_SCHEMA_REFERENCE_ONLY_NOT_CONNECTED.sql'),'utf8');
+  assert.ok(/`delivery_status` TEXT NULL/.test(schema),'Delivery status must preserve cancellation explanations longer than 40 characters');
+});
 function request(backend, url, body=null, method=body?'POST':'GET') {
   return new Promise(resolve=>{
     const req=Readable.from(body?[JSON.stringify(body)]:[]);

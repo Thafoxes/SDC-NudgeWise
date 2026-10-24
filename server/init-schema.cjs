@@ -3,7 +3,14 @@ const path = require('node:path');
 
 async function initializeSchema(connection, schema) {
   const [tables] = await connection.query('SHOW TABLES');
-  if (tables.length) return false;
+  if (tables.length) {
+    const [columns] = await connection.query("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'follow_up_actions' AND COLUMN_NAME = 'delivery_status'");
+    if (columns[0]?.DATA_TYPE === 'varchar') {
+      await connection.query('ALTER TABLE follow_up_actions MODIFY COLUMN delivery_status TEXT NULL');
+      console.log('Expanded follow_up_actions.delivery_status to TEXT');
+    }
+    return false;
+  }
   await connection.query(schema);
   return true;
 }
