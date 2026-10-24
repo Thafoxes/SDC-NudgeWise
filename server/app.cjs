@@ -17,8 +17,6 @@ const integrations = require('./integrations.cjs');
 const { businessDate } = require('../.server-build/lib/replyAnalysis.js');
 const { notifyMissedPromises } = require('../.server-build/lib/attention.js');
 const { createAccessGuard } = require('./access.cjs');
-const { createGmailService } = require('./gmail.cjs');
-const { createEmailPhase8 } = require('./email-phase8.cjs');
 const { serveFrontend } = require('./frontend.cjs');
 
 function createBackend({ directory = path.resolve('.local-data'), api = integrations, database = null, persist = null } = {}) {
@@ -140,8 +138,6 @@ function createBackend({ directory = path.resolve('.local-data'), api = integrat
   const origins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173',
     ...(process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean)]);
   const accessGuard = createAccessGuard();
-  const gmail = createGmailService(directory);
-  const phase8 = createEmailPhase8({directory,gmail,transaction,flush,api,businessId});
   const handleRequest = async (req, res) => {
     const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(body)); };
     try {
@@ -151,49 +147,7 @@ function createBackend({ directory = path.resolve('.local-data'), api = integrat
       const sameOrigin = req.headers.origin === `https://${req.headers.host}`
         || (localHost && req.headers.origin === `http://${req.headers.host}`);
       if (req.headers.origin && !sameOrigin && !origins.has(req.headers.origin)) return json(403, { error: 'Origin not allowed' });
-      // OAuth redirect has a one-time PKCE/state check and must be reachable without the app session.
-      const callbackPath = new URL(req.url, 'http://localhost').pathname;
-      if (req.method === 'GET' && callbackPath === '/api/email/callback') {
-        try {
-          await gmail.callback(new URL(req.url, 'http://localhost').searchParams);
-          res.writeHead(302, {Location: '/?gmail=connected#/settings', 'Cache-Control':'no-store'});
-          return res.end();
-        } catch (e) {
-          console.error('Gmail OAuth callback failed:', e.message);
-          res.writeHead(302, {Location: '/?gmail=failed#/settings', 'Cache-Control':'no-store'});
-          return res.end();
-        }
-      }
       if (!await accessGuard(req, res, json)) return;
-      if (req.method === 'GET' && req.url === '/api/email/status') return json(200, {result:gmail.status()});
-      if (req.method === 'GET' && req.url === '/api/email/overview') return json(200, {result:phase8.overview()});
-      if(req.method === 'POST' && ['/api/email/compose','/api/email/send','/api/email/preference','/api/email/document-automation','/api/email/resolve-task','/api/email/sync','/api/email/payment-request','/api/email/test-monitored','/api/email/approve-quotation','/api/email/quotation-status'].includes(req.url)){
-        if(req.headers['x-nudgewise-local']!=='1'||!req.headers['content-type']?.startsWith('application/json'))return json(403,{error:'Local JSON request required'});
-        let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>10000)return json(413,{error:'Request too large'});}
-        const input=JSON.parse(raw);if(!input||typeof input!=='object'||Array.isArray(input))return json(400,{error:'Invalid request'});
-        if(req.url==='/api/email/compose')return json(200,{result:phase8.compose(input)});
-        if(req.url==='/api/email/send')return json(200,{result:await phase8.sendManual(input)});
-        if(req.url==='/api/email/preference')return json(200,{result:phase8.updatePreference(input)});
-        if(req.url==='/api/email/document-automation')return json(200,{result:phase8.updateDocumentAutomation(input)});
-        if(req.url==='/api/email/resolve-task')return json(200,{result:phase8.taskResolve(input.id)});
-        if(req.url==='/api/email/payment-request')return json(200,{result:await phase8.sendPaymentRequest(input)});
-        if(req.url==='/api/email/test-monitored')return json(200,{result:await phase8.sendMonitoredTest(input)});
-        if(req.url==='/api/email/approve-quotation')return json(200,{result:phase8.approveQuotation(input)});
-        if(req.url==='/api/email/quotation-status')return json(200,{result:phase8.issuanceStatus(input)});
-        return json(200,{result:await phase8.syncReplies()});
-      }
-
-      if (req.method === 'POST' && ['/api/email/connect','/api/email/disconnect','/api/email/settings','/api/email/test'].includes(req.url)) {
-        if (req.headers['x-nudgewise-local'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) return json(403,{error:'Local JSON request required'});
-        let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>10000)return json(413,{error:'Email request too large'});}
-        const payload=JSON.parse(raw);
-        if (!payload || typeof payload!=='object' || Array.isArray(payload)) return json(400,{error:'Invalid request'});
-        if(req.url==='/api/email/connect') return json(200,{url:gmail.start()});
-        if(req.url==='/api/email/disconnect') return json(200,{result:gmail.disconnect()});
-        if(req.url==='/api/email/settings') return json(200,{result:gmail.updateSettings(payload)});
-        return json(200,{result:await gmail.sendTest(payload)});
-      }
-
       if (req.method === 'GET' && req.url === '/api/state') {
         const data = snapshot();
         await flush();
@@ -331,23 +285,6 @@ function createBackend({ directory = path.resolve('.local-data'), api = integrat
   };
   // MariaDB persists asynchronously. Serialize its requests to avoid stale snapshots.
   let requestQueue = Promise.resolve();
-  const phase8Timers=[];
-  // Route background jobs through the same queue as MariaDB requests so
-  // sending/auditing email cannot race another app-state write.
-  const runPhase8=(label,action)=>{
-    const job=requestQueue.then(()=>action());
-    requestQueue=job.catch(e=>console.error(`Phase 8 ${label}:`,e.message));
-  };
-  for(const [delay,label,action] of [
-    [15*60*1000,'reminder check',()=>phase8.tick()],
-    [30*1000,'document auto-email check',()=>phase8.tickDocuments()],
-    [5*60*1000,'reply check',()=>phase8.syncReplies()]]){
-    const timer=setInterval(()=>runPhase8(label,action),delay);
-    timer.unref();phase8Timers.push(timer);
-  }
-  setTimeout(()=>runPhase8('startup',async()=>{
-    await phase8.tick();await phase8.tickDocuments();await phase8.syncReplies();
-  }),5000).unref();
   const server = createServer((req, res) => {
     if (!database) { void handleRequest(req, res); return; }
     const current = requestQueue.then(() => handleRequest(req, res));
@@ -356,13 +293,13 @@ function createBackend({ directory = path.resolve('.local-data'), api = integrat
       if (!res.headersSent) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Server request failed' })); }
     });
   });
-  return { server, snapshot, transaction, db, monitor, stop() { phase8Timers.forEach(clearInterval); phase8.close(); server.close(); } };
+  return { server, snapshot, transaction, db, monitor, stop() { server.close(); } };
 }
 
 module.exports = { createBackend };
 if (require.main === module) {
-  if (process.env.PORT && !process.env.DEMO_ACCESS_KEY?.trim() && process.env.PUBLIC_DEMO !== 'true') {
-    throw new Error('DEMO_ACCESS_KEY is required when PORT is set unless PUBLIC_DEMO=true. Configure it in your hosting environment.');
+  if (process.env.PORT && !process.env.DEMO_ACCESS_KEY?.trim()) {
+    throw new Error('DEMO_ACCESS_KEY is required when PORT is set. Configure it in Replit Secrets before starting the public server.');
   }
   (async () => {
     const maria = (process.env.DB_CLIENT || '').toLowerCase() === 'mariadb'

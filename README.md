@@ -4,7 +4,7 @@ NudgeWise helps Malaysian micro and small businesses manage customer orders, quo
 
 **Version:** 1.1.0 · **Status:** Working prototype with optional backend persistence, local OCR and configurable Ollama AI. Use synthetic records for demos. Bank verification, production user authentication and statutory e-invoice submission are not implemented.
 
-Start with [local setup](#local-setup) to run the app, the [workflow manual](docs/customer-order-workflow.md) to use it, or the [project map](docs/project-map.md) to find the code you need.
+Start with [local setup](#local-setup) to run the app, the [workflow manual](docs/customer-order-workflow.md) to use it, or the [project structure](#project-structure) to find the code you need.
 
 ## Team
 
@@ -20,7 +20,7 @@ Start with [local setup](#local-setup) to run the app, the [workflow manual](doc
 ## Links
 | Resource | Link |
 | --- | --- |
-| Source repository | [SDC-MYInvoice](https://github.com/Thafoxes/SDC-MYInvoice) |
+| Source repository | [SDC-NudgeWise](https://github.com/Thafoxes/SDC-NudgeWise) |
 | Live Demo         | https://nudgewise-production.up.railway.app/              |
 | Slides | https://canva.link/jg055mv4dvbzpgc |
 | Demo Video        | https://example.com/demo-video                 |
@@ -56,7 +56,7 @@ The seller stays in control: they review extracted details, approve reminders an
 - **AI assistant with RAG:** Retrieves current invoice facts, reviewed company policies and workflow guidance for source-linked suggestions through Ollama. Includes optional invoice context and PDF/text policy import.
 - **Repeatable demo scenarios:** Load, reset or remove a fictional set of quotations, POs and invoices, including overdue, disputed, blocked and completed cases, while preserving independent manual records and company settings.
 
-The workspace starts without sample transactions. Demo controls provide a simulated business date and reset. The [sample buyer PO](output/pdf/demo-buyer-purchase-order.pdf) contains fictional contacts and three items totaling **MYR 1,520.00**.
+The workspace starts without sample transactions. Demo controls load, reset or remove fictional scenarios. Browser-only mode also supports a simulated business date; backend mode uses the current business date. The [sample buyer PO](output/pdf/demo-buyer-purchase-order.pdf) contains fictional contacts and three items totaling **MYR 1,520.00**.
 
 ## Choose a workflow
 
@@ -108,7 +108,7 @@ npm run dev
 
 Open [localhost:5173](http://localhost:5173). This mode stores records in browser localStorage; backend OCR is unavailable.
 
-### Backend with SQLite and cloud AI
+### Backend with SQLite and cloud AI — Windows
 
 Install Python 3.12 and the OCR dependencies:
 
@@ -116,6 +116,8 @@ Install Python 3.12 and the OCR dependencies:
 py -3.12 -m venv .venv
 .venv/Scripts/python.exe -m pip install -r server/requirements.txt
 ```
+
+These Python commands and executable paths are Windows-specific. For macOS/Linux equivalents, see the [backend guide](server/README.md).
 
 Create or edit `.env`, preserving existing credentials and settings:
 
@@ -197,7 +199,7 @@ OLLAMA_MODEL=gemma4:31b
 AI_TIMEOUT_MS=120000
 ```
 
-Replace `YOUR_POD_ID` with the ID shown in Runpod. For example, Pod `6ffjnpu2if3xjx` uses `https://6ffjnpu2if3xjx-11434.proxy.runpod.net`. Use your current Pod ID if it has changed. Do not append `/api/chat` to the base URL; the backend adds it.
+Replace `YOUR_POD_ID` with the ID shown in Runpod and confirm the HTTP proxy URL in your Pod's connection settings. Update the URL whenever you replace the Pod. Do not append `/api/chat` to the base URL; the backend adds it.
 
 `AI_PROVIDER=ollama` uses `OLLAMA_BASE_URL` without an API key, including when that URL points to Runpod. `http://localhost:11434` instead uses the computer running the backend. `AI_PROVIDER=cloud` uses `CLOUD_AI_BASE_URL` and the cloud key; saving a key alone does not select cloud mode.
 
@@ -289,7 +291,7 @@ src/
   router/            Routes and page navigation
 server/              HTTP API, database adapters, OCR worker and AI integration
 tests/               Regression suites and synthetic fixtures
-docs/                Workflow manual, project map and technical guides
+docs/                Workflow manual and technical guides
 database/            SQL export and database materials
 output/pdf/          Fictional buyer PO for manual demos
 submission/          Competition submission evidence
@@ -302,11 +304,9 @@ graphify-out/        Generated code map (snapshot; confirm against source)
 | --- | --- |
 | Use the application | [Customer and order workflow](docs/customer-order-workflow.md) |
 | Configure the API, database, OCR or AI | [Backend setup and troubleshooting](server/README.md) |
-| Find code and related tests | [Project map](docs/project-map.md) |
+| Find code and related tests | [Project structure](#project-structure) and `tests/` |
 | Explore code relationships | [Interactive Graphify map](graphify-out/graph.html) (download and open locally); [map report](graphify-out/GRAPH_REPORT.md) |
-| Run on Replit | [Replit hosting](docs/replit.md) |
 | Understand assistant rendering | [Markdown rendering and attribution](docs/assistant-markdown.md) |
-| Review proposed email work | [Email workflow proposal (not implemented)](docs/email-mvp-plan.md) |
 
 ### Refresh the code map
 
@@ -316,7 +316,7 @@ With `graphifyy` installed in your Python environment, run from the repository r
 python graphify-out/rebuild.py
 ```
 
-This refreshes `graph.html`, `graph.json`, `GRAPH_REPORT.md` and `coverage.json` in `graphify-out/`. The map indexes code relationships and documentation headings; verify runtime behavior in the source and tests. Secrets, runtime data, dependencies, builds and binary fixtures are excluded. See the [project map](docs/project-map.md#map-boundaries) for coverage limits.
+This refreshes `graph.html`, `graph.json`, `GRAPH_REPORT.md` and `coverage.json` in `graphify-out/`. The map indexes code relationships and documentation headings; verify runtime behavior in the source and tests. Secrets, runtime data, dependencies, builds and binary fixtures are excluded. See the [map report](graphify-out/GRAPH_REPORT.md) for the generated snapshot, and confirm coverage against the current source.
 
 ## Prototype limits
 
