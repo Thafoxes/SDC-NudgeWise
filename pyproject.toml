@@ -5,6 +5,5 @@ description = "Python dependencies for the existing NudgeWise Docling receipt wo
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "docling[rapidocr]==2.133.0",
-    "rapidocr==3.9.1",
     "onnxruntime>=1.20,<2",
 ]
