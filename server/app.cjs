@@ -361,8 +361,8 @@ function createBackend({ directory = path.resolve('.local-data'), api = integrat
 
 module.exports = { createBackend };
 if (require.main === module) {
-  if (process.env.PORT && !process.env.DEMO_ACCESS_KEY?.trim()) {
-    throw new Error('DEMO_ACCESS_KEY is required when PORT is set. Configure it in Replit Secrets before starting the public server.');
+  if (process.env.PORT && !process.env.DEMO_ACCESS_KEY?.trim() && process.env.PUBLIC_DEMO !== 'true') {
+    throw new Error('DEMO_ACCESS_KEY is required when PORT is set unless PUBLIC_DEMO=true. Configure it in your hosting environment.');
   }
   (async () => {
     const maria = (process.env.DB_CLIENT || '').toLowerCase() === 'mariadb'

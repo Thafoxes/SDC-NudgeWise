@@ -42,7 +42,7 @@ npm run dev
 
 Open http://localhost:5173. The backend defaults to http://127.0.0.1:8787; Vite proxies `/api` there. SQLite data and original PO evidence are stored in `.local-data/demo.sqlite`. Do not commit `.env`, databases, backups, or original business documents.
 
-`npm start` builds the frontend and starts the backend, which serves the built frontend too. Setting `PORT` makes the server listen on all interfaces and requires `DEMO_ACCESS_KEY`; this shared demo passcode is not production user authentication. Restart the backend after changing server settings and restart Vite after changing `VITE_*` settings.
+`npm start` builds the frontend and starts the backend, which serves the built frontend too. Setting `PORT` makes the server listen on all interfaces and requires `DEMO_ACCESS_KEY`; this shared demo passcode is not production user authentication. Set `PUBLIC_DEMO=true` only to deliberately allow anyone to read/edit a shared demo without a passcode. Restart the backend after changing server settings and restart Vite after changing `VITE_*` settings.
 
 ## Runpod Ollama
 

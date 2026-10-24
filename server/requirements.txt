@@ -1,2 +1,4 @@
 docling[rapidocr]==2.133.0
+# 3.10.0 removed PP_OCRV6_LANGS, which this Docling version imports.
+rapidocr==3.9.1
 onnxruntime>=1.20,<2
