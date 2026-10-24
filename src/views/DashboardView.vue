@@ -194,6 +194,20 @@ const chartOptions = {
       <span class="shrink-0 text-sm font-medium text-rose-700">Review <ArrowRight class="inline h-4 w-4" /></span>
     </RouterLink>
 
+    <section class="card p-4 sm:p-5 space-y-3" aria-label="Today's priority actions">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+       <div><h2 class="text-base font-semibold text-slate-900">Your next actions</h2>
+        <p class="text-xs text-slate-600">{{needsActionCount}} invoice/order alert{{needsActionCount===1?'':'s'}} in business records. Check Action Center for buyer email replies. AI suggestions never confirm approval or payment.</p></div>
+       <div class="flex flex-wrap gap-2"><RouterLink to="/orders" class="primary-btn">+ New order</RouterLink><RouterLink to="/quick-sale" class="outline-btn">+ Quick invoice</RouterLink><RouterLink to="/action-center" class="outline-btn">Open Action Center →</RouterLink></div>
+      </div>
+      <div v-if="blocked.length||exceptions.length" class="space-y-2">
+       <RouterLink v-for="b in blocked.slice(0,2)" :key="b.order.id" :to="`/orders/${encodeURIComponent(b.order.id)}/view`" class="flex items-start justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm hover:bg-rose-100">
+        <span><strong>{{b.order.reference}}</strong> · {{b.blockers[0]?.reason||'Blocked order'}}</span><span class="font-semibold text-rose-700">Review →</span></RouterLink>
+       <RouterLink v-for="a in exceptions.slice(0,2)" :key="a.kind+'-'+a.target" to="/action-center" class="flex items-start justify-between gap-3 rounded-lg border bg-white p-3 text-sm hover:bg-slate-50"><span><strong>{{a.issue}}</strong> · {{a.reason}}</span><span class="font-semibold text-blue-700">Review →</span></RouterLink>
+      </div>
+      <p v-else class="text-sm text-slate-600">No exception alerts in the current business records. You can continue working on orders or invoices.</p>
+    </section>
+
     <!-- KPIs -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <RouterLink v-for="k in kpis" :key="k.label" :to="k.to" class="card group block p-5 transition hover:border-slate-300">

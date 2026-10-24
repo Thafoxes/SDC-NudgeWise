@@ -16,8 +16,29 @@ Start with [local setup](#local-setup) to run the app, the [workflow manual](doc
 | Team leader | WONG JIA SOON |
 | University | UNIVERSITI TEKNOLOGI MALAYSIA |
 | Members | 4 |
+
+## Links
+| Resource | Link |
+| --- | --- |
 | Source repository | [SDC-MYInvoice](https://github.com/Thafoxes/SDC-MYInvoice) |
-| Slides and demo video | [Presentation and demo](https://canva.link/jg055mv4dvbzpgc) |
+| Live Demo         | https://nudgewise-production.up.railway.app/              |
+| Slides | https://canva.link/jg055mv4dvbzpgc |
+| Demo Video        | https://example.com/demo-video                 |
+
+
+## Overview
+
+### Problem
+
+Malaysian micro and small business owners often track customer orders, invoices and payment updates across chat messages, paper documents and spreadsheets. Checking what each customer owes and following up on late payments takes time, and missed reminders can delay money the business needs for daily expenses. Owners need a simple way to keep records together and see what needs attention.
+
+### Solution
+
+NudgeWise brings customer details, orders, quotations, invoices and payment records into one workspace. It shows unpaid and overdue invoices, helps owners plan follow-ups, and uses AI to suggest reminder wording and answer questions using business records and reviewed company policies. It can also extract details from uploaded order documents for the seller to check, reducing repeated typing.
+
+The seller stays in control: they review extracted details, approve reminders and verify payments before marking invoices as paid. The current prototype simulates reminder delivery; it does not send reminders or verify bank payments automatically.
+
+
 
 ## Features
 

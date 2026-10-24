@@ -12,6 +12,13 @@ const input=ref(''),loading=ref(false),scrollArea=ref<HTMLElement|null>(null);
 const aiError=ref(''),selectedInvoice=ref('');
 const invoices=computed(()=>data.value.invoices.filter(i=>i.business_id===DEMO_BUSINESS_ID));
 const messages=computed(()=>data.value.aiConversations.filter(m=>m.business_id===DEMO_BUSINESS_ID));
+function conversationalReply(message:string):string|null {
+ const text=message.trim().toLowerCase().replace(/[.!?\s]+$/g,'');
+ if(/^(hi|hello|hey|hey there|good morning|good afternoon|good evening)$/.test(text))return 'Hello! I can help with your orders, quotations, invoices and payment follow-ups. What would you like to do?';
+ if(/^(bye|goodbye|see you|see ya)$/.test(text))return 'See you! Come back whenever you need help with an order or payment.';
+ if(/^(thanks|thank you|thank you so much|thx)$/.test(text))return 'You’re welcome! Anything else you’d like to check?';
+ return null;
+}
 const prompts=['What is the difference between a PO and quotation?','Which purchase orders are pending?','Which invoices need attention and what policy applies?','Explain common payment blockers.','What evidence supports an order?','How does a payment claim get verified?'];
 async function scrollDown(){await nextTick();if(scrollArea.value)scrollArea.value.scrollTop=scrollArea.value.scrollHeight;}
 async function send(text:string){
@@ -19,8 +26,12 @@ async function send(text:string){
  loading.value=true;input.value='';aiError.value='';
  try {
   await addAiMessage(DEMO_BUSINESS_ID,DEMO_SELLER_ID,'user',question);refreshStore();void scrollDown();
-  const res=await askAiAssistant(question,DEMO_BUSINESS_ID,data.value.businesses.find(b=>b.id===DEMO_BUSINESS_ID)?.name || 'My business',selectedInvoice.value);
-  await addAiMessage(DEMO_BUSINESS_ID,DEMO_SELLER_ID,'assistant',res.answer,res.sources||[]);
+  const casual=conversationalReply(question);
+  if(casual) await addAiMessage(DEMO_BUSINESS_ID,DEMO_SELLER_ID,'assistant',casual,[]);
+  else {
+   const res=await askAiAssistant(question,DEMO_BUSINESS_ID,data.value.businesses.find(b=>b.id===DEMO_BUSINESS_ID)?.name || 'My business',selectedInvoice.value);
+   await addAiMessage(DEMO_BUSINESS_ID,DEMO_SELLER_ID,'assistant',res.answer,res.sources||[]);
+  }
  } catch (cause) { aiError.value = cause instanceof Error ? cause.message : 'AI request failed'; }
  finally {loading.value=false;refreshStore();void scrollDown();}
 }
