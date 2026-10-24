@@ -1,0 +1,35 @@
+{
+  "document_lines": {
+    "README.md": 220,
+    "docs/assistant-markdown.md": 14,
+    "docs/customer-order-workflow.md": 272,
+    "docs/email-mvp-plan.md": 267,
+    "docs/replit.md": 22,
+    "index.html": 13,
+    "server/README.md": 120,
+    "server/requirements.txt": 2
+  },
+  "scope": [
+    ".env*",
+    ".agents/**",
+    ".codex/**",
+    ".local-data/**",
+    ".server-build/**",
+    ".test-build/**",
+    ".venv*/**",
+    ".vite/**",
+    "node_modules/**",
+    "dist/**",
+    "datasets/**",
+    "runpod/**",
+    "submission/**",
+    "graphify-out/**",
+    "*.pdf",
+    "tests/fixtures/**",
+    ".impeccable.md",
+    "docs/project-map.md"
+  ],
+  "extraction": "AST plus document headings and literal code-path references",
+  "host_session_tokens": null,
+  "generated_at": "2026-10-24T05:54:19.536160+00:00"
+}

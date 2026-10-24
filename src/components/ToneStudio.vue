@@ -2,9 +2,9 @@
 import { computed, ref, watch } from 'vue';
 import { Sparkles, RefreshCw, FileText, Languages } from 'lucide-vue-next';
 import BaseModal from '@/components/BaseModal.vue';
-import TelegramPreview from '@/components/TelegramPreview.vue';
+import MessagePreview from '@/components/MessagePreview.vue';
 import { TONES, LANGS, templateReminder, type Tone, type Lang, type ReminderFacts } from '@/presentation/toneStudio';
-import { telegramEnabled } from '@/services/commands';
+import { backendEnabled } from '@/services/commands';
 import { rewriteReminder, type RewriteResult } from '@/services/rewrite';
 
 const props = defineProps<{ open: boolean; followUpId: string | null; facts: ReminderFacts | null; currentMessage: string; defaultTone: Tone; savedLang: Lang }>();
@@ -27,9 +27,9 @@ function generate(delay = 0) {
   result.value = {
     text: templateReminder(props.facts, tone.value, lang.value),
     source: 'template',
-    note: telegramEnabled ? 'Asking Gemma for a fresh version…' : undefined,
+    note: backendEnabled ? 'Asking Gemma for a fresh version…' : undefined,
   };
-  if (!telegramEnabled) { void finish(id); return; }
+  if (!backendEnabled) { void finish(id); return; }
   loading.value = true;
   clearTimeout(debounce);
   debounce = setTimeout(() => void finish(id), delay);
@@ -131,7 +131,7 @@ const preview = computed(() => result.value?.text ?? props.currentMessage);
         </div>
         <p v-if="result?.note" class="text-[13px] text-orbyte-muted">{{ result.note }}</p>
         <div :class="loading ? 'opacity-60 transition-opacity' : 'transition-opacity'">
-          <TelegramPreview :message="preview" :recipient-name="facts?.customerName" :sender-name="facts?.businessName" />
+          <MessagePreview :message="preview" :recipient-name="facts?.customerName" :sender-name="facts?.businessName" />
         </div>
       </div>
     </div>

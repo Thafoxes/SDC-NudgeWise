@@ -9,7 +9,7 @@ with redirect_stdout(sys.stderr):
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
 
-    options = PdfPipelineOptions(do_ocr=True, do_table_structure=False)
+    options = PdfPipelineOptions(do_ocr=True, do_table_structure='--tables' in sys.argv)
     options.ocr_options = RapidOcrOptions()
     converter = DocumentConverter(format_options={
         InputFormat.PDF: PdfFormatOption(pipeline_options=options),

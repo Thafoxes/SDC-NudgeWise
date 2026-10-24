@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { telegramEnabled } from '@/services/commands';
 import { Send } from 'lucide-vue-next';
 defineProps<{ message: string; recipientName?: string; senderName?: string }>();
 </script>
@@ -11,7 +10,7 @@ defineProps<{ message: string; recipientName?: string; senderName?: string }>();
         <Send class="h-3 w-3 text-sky-500" /> Message preview
         <span v-if="recipientName" class="font-normal text-slate-400">· to {{ recipientName }}</span>
       </span>
-      <span class="text-[12px] text-slate-400">{{ telegramEnabled ? 'Telegram API mode' : 'Simulated delivery' }}</span>
+      <span class="text-[12px] text-slate-400">Simulated delivery</span>
     </div>
     <div class="bg-[#E7EEF5] px-3 py-3">
       <div class="ml-auto max-w-[92%] rounded-xl rounded-br-sm bg-[#EFFDDE] px-3 py-2 shadow-sm sm:max-w-[85%]">

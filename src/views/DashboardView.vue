@@ -7,6 +7,8 @@ import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip } fro
 import AttentionQueue from '@/components/AttentionQueue.vue';
 import SellerWins from '@/components/SellerWins.vue';
 import { getAttention } from '@/lib/attention';
+import { blockedOrders } from '@/lib/orderWorkflow';
+import { AlertTriangle } from 'lucide-vue-next';
 import { useDemoStore } from '@/composables/useDemoStore';
 import { DEMO_BUSINESS_ID, DEMO_SELLER_ID } from '@/lib/store';
 import { computeInvoiceWithCustomer } from '@/lib/store';
@@ -77,7 +79,8 @@ const levelCounts = computed(() =>
 const topAttention = computed(() => priorities.value.filter(p => p.level === 'red').slice(0, 3));
 
 /* ---------- KPIs ---------- */
-const needsActionCount = computed(() => attention.value.length);
+const blocked = computed(() => { void data.value; return blockedOrders(bizId.value); });
+const needsActionCount = computed(() => attention.value.length + blocked.value.length);
 const outstandingTotal = computed(() => sumMoney(openInvoices.value.map(i => i.outstanding_balance)));
 const overdueTotal = computed(() => sumMoney(overdueInvoices.value.map(i => i.outstanding_balance)));
 const overduePct = computed(() => (outstandingTotal.value > 0 ? Math.round((overdueTotal.value / outstandingTotal.value) * 100) : 0));
@@ -106,7 +109,7 @@ const kpis = computed(() => [
   {
     label: 'Needs your action',
     value: String(needsActionCount.value),
-    sub: `${plural(pendingApprovals.value.length, 'approval')} · ${plural(exceptions.value.length, 'exception')} · ${attention.value.filter(i => i.kind === 'overdue').length} overdue`,
+    sub: `${plural(pendingApprovals.value.length, 'approval')} · ${plural(exceptions.value.length, 'exception')} · ${plural(blocked.value.length, 'blocked order')}`,
     to: '/action-center',
     tone: needsActionCount.value ? 'text-blue-700' : 'text-slate-900',
   },
@@ -183,6 +186,13 @@ const chartOptions = {
         </button>
       </div>
     </div>
+
+    <RouterLink v-if="blocked.length" to="/action-center?tab=blocked" class="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 transition hover:border-rose-300" aria-label="Blocked orders">
+      <span class="flex items-start gap-3"><AlertTriangle class="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+        <span><span class="block text-sm font-semibold text-rose-900">{{ plural(blocked.length, 'order') }} blocked from invoicing or follow-up</span>
+          <span class="block text-[13px] text-rose-800">{{ blocked[0].order.reference }}: {{ blocked[0].blockers[0].reason }}<template v-if="blocked.length > 1"> · and {{ blocked.length - 1 }} more</template></span></span></span>
+      <span class="shrink-0 text-sm font-medium text-rose-700">Review <ArrowRight class="inline h-4 w-4" /></span>
+    </RouterLink>
 
     <!-- KPIs -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

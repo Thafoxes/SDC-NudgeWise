@@ -1,4 +1,4 @@
-// Money and date utilities — all money in MYR with exact decimal arithmetic via cents.
+// Money and date utilities — money uses transaction currency with exact decimal arithmetic via cents.
 
 export function toCents(amount: number): number {
   return Math.round(amount * 100);
@@ -21,10 +21,10 @@ export function sumMoney(values: number[]): number {
   return fromCents(values.reduce((acc, v) => acc + toCents(v), 0));
 }
 
-export function formatMYR(amount: number): string {
+export function formatMYR(amount: number, currency = 'MYR'): string {
   return new Intl.NumberFormat('en-MY', {
     style: 'currency',
-    currency: 'MYR',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

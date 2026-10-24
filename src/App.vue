@@ -7,7 +7,7 @@ import DemoControls from '@/components/DemoControls.vue';
 import PaymentCelebration from '@/components/PaymentCelebration.vue';
 import { useDemoStore } from '@/composables/useDemoStore';
 import { DEMO_BUSINESS_ID, DEMO_SELLER_ID } from '@/lib/store';
-import { telegramEnabled, connectionError, refreshServer } from '@/services/commands';
+import { backendEnabled, connectionError, refreshServer } from '@/services/commands';
 const {data,refreshStore}=useDemoStore();
 const mainContent=ref<HTMLElement|null>(null);
 const seller=computed(()=>data.value.users.find(u=>u.id===DEMO_SELLER_ID)??data.value.users[0]);
@@ -15,7 +15,7 @@ const notifications=computed(()=>data.value.notifications.filter(n=>n.business_i
 const onStorage=()=>refreshStore();
 onMounted(()=>window.addEventListener('storage',onStorage));
 let poll: ReturnType<typeof setInterval> | undefined;
-onMounted(()=>{if(telegramEnabled){void refreshServer().catch(()=>{});poll=setInterval(()=>void refreshServer().catch(()=>{}),2000);}});
+onMounted(()=>{if(backendEnabled){void refreshServer().catch(()=>{});poll=setInterval(()=>void refreshServer().catch(()=>{}),2000);}});
 onUnmounted(()=>{if(poll)clearInterval(poll);});
 onUnmounted(()=>window.removeEventListener('storage',onStorage));
 </script>

@@ -32,29 +32,8 @@ export interface Receipt {
   expected_account_name?: string;
 }
 
-export interface SentInvoice {
-  business_id: string;
-  customer_id: string;
-  invoice_id: string;
-  chat_id: string;
-  message_id: number;
-  sent_at: string;
-}
-
 export function receiptReason(reason: string): string {
   return reason.replace(/\bbeneficiary\b/gi, 'Recipient account name');
-}
-
-export function matchReceipt(data: StoreData, sent: SentInvoice[], chatId: string, businessId: string, replyId?: number) {
-  const customers = data.customers.filter(c => c.business_id === businessId && c.telegram_chat_id === chatId);
-  if (customers.length !== 1) return { invoice: null, customer: null, reason: 'Telegram chat is not uniquely linked to a customer' };
-  const customer = customers[0];
-  const messages = sent.filter(s => s.business_id === businessId && s.customer_id === customer.id && s.chat_id === chatId);
-  const message = replyId !== undefined ? messages.find(s => s.message_id === replyId)
-    : messages.sort((a, b) => b.sent_at.localeCompare(a.sent_at) || b.message_id - a.message_id)[0];
-  const invoice = data.invoices.find(i => i.id === message?.invoice_id && i.customer_id === customer.id && i.business_id === businessId);
-  if (!invoice) return { invoice: null, customer, reason: 'No matching sent invoice found' };
-  return { invoice, customer, reason: '' };
 }
 
 export function validateExtraction(value: unknown): ReceiptExtraction {

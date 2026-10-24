@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
+import { backendEnabled } from '@/services/commands';
 
 type AccessState = 'loading' | 'ready' | 'error';
 
@@ -14,7 +15,7 @@ async function checkAccess() {
   message.value = '';
 
   // Frontend-only local development has no backend to ask; there is nothing to protect.
-  if (import.meta.env.DEV && import.meta.env.VITE_TELEGRAM_ENABLED !== 'true') {
+  if (import.meta.env.DEV && !backendEnabled) {
     authenticated.value = true;
     state.value = 'ready';
     return;
@@ -27,7 +28,7 @@ async function checkAccess() {
       credentials: 'same-origin',
     });
 
-    if (response.status === 404 && import.meta.env.DEV && import.meta.env.VITE_TELEGRAM_ENABLED !== 'true') {
+    if (response.status === 404 && import.meta.env.DEV && !backendEnabled) {
       authenticated.value = true;
       state.value = 'ready';
       return;

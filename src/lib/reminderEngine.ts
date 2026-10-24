@@ -4,7 +4,7 @@ import {
 } from '@/types';
 import {
   getStore, computeStatus, addFollowUpAction, addActivity, addNotificationRecord,
-  updateInvoice, DEMO_BUSINESS_ID, DEMO_BUSINESS_NAME,
+  updateInvoice, DEMO_BUSINESS_ID, DEMO_BUSINESS_NAME, debitTotal,
 } from './store';
 import { notifyMissedPromises, replyNeedsReview } from './attention';
 import { subtractMoney, sumMoney, daysOverdue, daysBetween, formatMYR } from './format';
@@ -66,16 +66,16 @@ export function approvalFingerprint(fu: FollowUpAction, invoice: Invoice, data: 
     .map(p => [p.id, p.amount, p.payment_date]).sort((a,b) => String(a[0]).localeCompare(String(b[0])));
   const credits = data.credits.filter(c => c.business_id === invoice.business_id && c.invoice_id === invoice.id)
     .map(c => [c.id, c.amount]).sort((a,b) => String(a[0]).localeCompare(String(b[0])));
+  const debits = debitTotal(data, invoice);
   const customer = data.customers.find(c => c.id === invoice.customer_id && c.business_id === invoice.business_id);
-  // For the local demo, phone is the placeholder recipient. Telegram will replace it later.
+  // Simulated delivery uses the customer phone as its recipient identifier.
   return messageHash(JSON.stringify({
     business: fu.business_id, invoice: invoice.id, customer: invoice.customer_id,
     amount: invoice.invoice_amount, issued: invoice.issue_date, due: invoice.due_date,
     dispute: invoice.dispute_active, verification: invoice.verification_hold,
     promise: invoice.promise_confirmed ? invoice.promise_to_pay_date : null,
-    payments, credits, message: fu.message, messageVersion: fu.message_version,
+    payments, credits, ...(debits ? { debits } : {}), message: fu.message, messageVersion: fu.message_version,
     recipient: fu.recipient, actualRecipient: customer?.phone ?? null,
-    telegramRecipient: customer?.telegram_chat_id ?? null,
   }));
 }
 
@@ -124,7 +124,7 @@ export function runInvoiceCheck(businessId: string = DEMO_BUSINESS_ID, businessN
     const payments = refreshed.payments.filter((p) => p.invoice_id === inv.id && p.verification_status === 'recorded');
     const credits = refreshed.credits.filter((c) => c.invoice_id === inv.id);
     const totalPaid = sumMoney(payments.map((p) => p.amount));
-    const outstanding = Math.max(0, subtractMoney(subtractMoney(inv.invoice_amount, totalPaid), sumMoney(credits.map((c) => c.amount))));
+    const outstanding = Math.max(0, subtractMoney(subtractMoney(sumMoney([inv.invoice_amount, debitTotal(refreshed, inv)]), totalPaid), sumMoney(credits.map((c) => c.amount))));
     const invWithCustomer: InvoiceWithCustomer = {
       ...inv,
       customer: refreshed.customers.find((c) => c.id === inv.customer_id),

@@ -66,7 +66,7 @@ export function getSuggestedAction(category: string): string {
   }
 }
 
-export function askAiAssistant(question: string, businessId: string = DEMO_BUSINESS_ID, businessName: string = DEMO_BUSINESS_NAME): { answer: string; usedFallback: boolean } {
+export function askAiAssistant(question: string, businessId: string = DEMO_BUSINESS_ID, businessName: string = DEMO_BUSINESS_NAME, invoiceId = ''): { answer: string; usedFallback: boolean; sources?: import('./knowledge').RagSource[] } {
   const data = getStore();
   const todayStr = data.demoState.simulated_date;
   const invoices = data.invoices

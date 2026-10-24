@@ -14,7 +14,7 @@ global.localStorage = {
   setItem: (key, val) => mem.set(key, String(val)),
   removeItem: key => mem.delete(key),
 };
-const reset = () => { store.resetStore(); store.setDemoDate('2026-10-20'); };
+const reset = () => { require('./fixtures/load-business-data.cjs')(store); store.setDemoDate('2026-10-20'); };
 const biz = 'biz-001';
 const sellerId = 'user-seller', seller = 'Siti Aishah';
 const getFu = () => store.getStore().followUpActions.find(f => f.id === 'fu-001');

@@ -1,286 +1,220 @@
-# NudgeWise — Invoice Follow-Up Assistant
+# NudgeWise - Sales and Invoice Follow-Up Assistant
 
-> A seller-controlled invoice follow-up prototype for Malaysian micro and small businesses. NudgeWise tracks outstanding invoices, prepares reminder drafts, records simulated follow-ups, and explains which customer records need attention.
+NudgeWise helps Malaysian micro and small businesses manage customer orders, quotations, direct invoices, payment reviews and invoice follow-ups in one seller-controlled workspace.
 
-**Current version:** Vue demo v1.1 (Phase 1 reminder safeguards + Phase 2 customer follow-up priorities)  
-**Status:** Synthetic-data prototype with an optional local Telegram receipt integration: Docling OCR → `gemma4:31b` → invoice matching → demo settlement or seller attention. See [setup and test instructions](server/README.md). Real bank verification and production authentication are not implemented.
+**Version:** 1.1.0 · **Status:** Working prototype with optional backend persistence, local OCR and configurable Ollama AI. Use synthetic records for demos. Bank verification, production user authentication and statutory e-invoice submission are not implemented.
 
-## Team Information
+Start with [local setup](#local-setup) to run the app, the [workflow manual](docs/customer-order-workflow.md) to use it, or the [project map](docs/project-map.md) to find the code you need.
 
-| Field                  | Details                                     |
-| ---------------------- | ------------------------------------------- |
-| **Team Name**          | YOLO                                        |
-| **Team Domain**        | Domain 2                                    |
-| **SDG Track (1–17)**   | SDG 8 — Decent Work and Economic Growth |
-| **Team Leader**        | WONG JIA SOON                               |
-| **University**         | UNIVERSITI TEKNOLOGI MALAYSIA                |
-| **Number of Members**  | 4                                      |
+## Team
 
-## Project Links
-
-| Resource | Link / Status |
+| Field | Details |
 | --- | --- |
-| Source repository | [Thafoxes/SDC-MYInvoice](https://github.com/Thafoxes/SDC-MYInvoice) |
-| Replit project | Not connected yet |
-| Live demo | Not deployed yet |
-| RunPod inference | Not configured yet |
-| Slides and demo video | To be added before submission |
+| Team name | YOLO |
+| Domain | Domain 2 |
+| SDG track | SDG 8 - Decent Work and Economic Growth |
+| Team leader | WONG JIA SOON |
+| University | UNIVERSITI TEKNOLOGI MALAYSIA |
+| Members | 4 |
+| Source repository | [SDC-MYInvoice](https://github.com/Thafoxes/SDC-MYInvoice) |
+| Slides and demo video | [Presentation and demo](https://canva.link/jg055mv4dvbzpgc) |
 
-## Problem and Solution
+## Features
 
-Malaysian small-business sellers may need to compare invoice records, payment updates, and customer messages manually when following up on unpaid invoices. Repeated checks can lead to wasted time or inappropriate reminders if an invoice is already settled, disputed, or awaiting verification.
+- **Customers:** Find customers by phone, add details manually, or review contact suggestions extracted from a document.
+- **Orders and quotations:** Capture buyer requests with or without a buyer PO, negotiate quotation items, retain supporting evidence and use agreed items for the order. Drafts remain editable before agreement/approval.
+- **PO review:** Upload PDF, PNG or JPG documents; review contacts, line items, currency and totals against the original. Total mismatches and customer holds require correction or an explicit seller exception.
+- **Quick sale / direct invoice:** Issue an invoice immediately for agreed small B2B/POS-style transactions without a quotation or buyer PO. Choose paid immediately or pay later.
+- **Order extraction:** Read quick-sale items, quantities and explicit prices from screenshots or PDFs using local Docling and the configured AI. Review results before issuing an invoice; failed extraction leaves a manual-entry path.
+- **Payments and evidence:** Record verified payments, including partial payments, and attach bank-transfer/card receipt images or PDFs. Payment proof is supporting evidence and does not automatically mark an invoice paid.
+- **Documents and completion:** View, print or download quotation/invoice PDFs with contacts and item tables. Issue a final settlement receipt and complete the order after settlement, delivery and holds are resolved.
+- **Company settings:** Edit seller name, address, phone, email and document preparer. New orders use this company as the seller. An editable fictional company profile is provided for demos.
+- **Dashboard and Action Center:** Review balances, overdue invoices, reminder approvals, customer replies, payment claims and activity history.
+- **Reminder safeguards:** Recheck invoice eligibility before recording a simulated follow-up; respect dispute and payment-verification holds and duplicate-checkpoint rules.
+- **Customer priorities:** Explainable Red / Yellow / Green / Grey follow-up classifications, separate from operational review urgency.
+- **AI assistant with RAG:** Retrieves current invoice facts, reviewed company policies and workflow guidance for source-linked suggestions through Ollama. Includes optional invoice context and PDF/text policy import.
+- **Repeatable demo scenarios:** Load, reset or remove a fictional set of quotations, POs and invoices, including overdue, disputed, blocked and completed cases, while preserving independent manual records and company settings.
 
-**NudgeWise** focuses on a controlled follow-up workflow: **invoice checkpoint → draft → seller review/approval → revalidation → recorded outcome**. The current build simulates the workflow using local data; optional Telegram delivery and receipt processing are available in local integration mode.
+The workspace starts without sample transactions. Demo controls provide a simulated business date and reset. The [sample buyer PO](output/pdf/demo-buyer-purchase-order.pdf) contains fictional contacts and three items totaling **MYR 1,520.00**.
 
-## Implemented Demo Features
+## Choose a workflow
 
-- **Telegram customer replies (optional local mode):** Gemma classifies payment claims, promises, extension and payment-method requests. Sellers confirm dates; Dashboard and Action Center share missed-promise and verification alerts across all invoices.
-- **Receipt account-name explanation:** shows the seller’s expected receiving account name alongside the recipient name read from a receipt.
+| Situation | Where to start |
+| --- | --- |
+| Agreed items and prices; invoice needed immediately | **Invoices > New quick sale / invoice** |
+| Quotation negotiation, buyer PO or longer delivery process | **Orders** / purchase-order intake |
+| Review a payment, invoice PDF or final receipt | **Invoice Details** |
+| Update your own company information | **Settings** |
 
-- **Dashboard:** collected/outstanding/overdue metrics, invoice search and filters, charts, and invoice details.
-- **Action Center:** seller reminder approvals, rejections, customer replies, receipt reviews, and activity history.
-- **AI Assistant page:** invoice-aware responses through `gemma4:31b` when Telegram integration mode is enabled, and local rules otherwise.
-- **Reminder safeguards (Phase 1):** due/overdue checkpoints; holds for disputes and unverified payment claims; approval checks; duplicate-checkpoint protection; missed-payment-promise alerts in the demo logic.
-- **Customer priorities (Phase 2):** explainable **Red / Yellow / Green / Grey** classification from synthetic invoice/payment history. Customer priority is separate from the urgency of an operational review.
-- **Demo controls:** simulated business date, invoice checks, payment recording, customer replies, and reset.
-- **Storage:** browser-only mode uses localStorage (`nudgewise-demo-v1.1`); Telegram mode uses a separate local SQLite store shared by the bot and dashboard.
+For paid-immediately quick sales, confirm goods handover and settled funds before issuing the invoice, receipt and completion record. For credit sales, record later payments, issue the final receipt after settlement and complete delivery review before closing the order.
 
-### Not Implemented Yet
+Read the [customer and order workflow manual](docs/customer-order-workflow.md) for step-by-step procedures, exceptions and document rules.
 
-- Production Telegram webhooks, customer onboarding and seller authentication. Local polling and manual test-chat linking are implemented.
-- RunPod deployment. Direct Ollama API with Gemma 4 cloud and receipt-output validation are implemented in optional integration mode.
-- Production database and server-side user authentication. The local service uses SQLite and existing demo role rules.
-- Live Orbyte platform integration, real payment verification, and production-grade delivery handling.
-
-**Use synthetic customer details and financial records.** Keep test-bot credentials in `.env`. The demo is not a payment-processing service or statutory e-invoice submission system.
-
-## Tech Stack (Current)
+## Technology
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | Vue 3 + TypeScript |
-| Build / development | Vite 5 |
-| Navigation | Vue Router |
-| Styling | Tailwind CSS |
-| Charts | Chart.js + vue-chartjs |
-| Icons | lucide-vue-next (current demo dependency) |
-| Application logic | TypeScript modules in `src/lib/` |
-| Persistence | Browser localStorage (frontend-only) or SQLite (Telegram mode) |
-| Local backend | Node.js 24 built-in HTTP server and SQLite |
-| OCR | Python 3.12 + Docling / RapidOCR |
-| AI | Ollama cloud API → `gemma4:31b` |
-| Messaging | Telegram Bot API with long polling |
-| Logic tests | TypeScript compiler + Node.js built-in test runner |
+| Frontend | Vue 3, TypeScript, Vue Router |
+| Styling and visuals | Tailwind CSS, Lucide, Chart.js, vue-chartjs, Inter font |
+| Build | Vite, vue-tsc, PostCSS, Autoprefixer |
+| Backend | Node.js 24+ built-in HTTP server |
+| Persistence | Browser localStorage, or backend SQLite / MySQL-MariaDB-compatible storage through mysql2 |
+| Document extraction | Python 3.12, Docling, RapidOCR, ONNX Runtime |
+| AI | Ollama-compatible local/cloud API; documented cloud example uses Gemma 4 |
+| Tests | TypeScript compiler and Node.js built-in test runner |
 
-**How it runs:** Vue frontend → local Node backend → Telegram, SQLite and Ollama’s cloud API. Docling OCR runs locally in Python. **You do not need to install or run Ollama on your computer.**
+The frontend calls the project's own `/api` backend. Docling runs as a local Python worker, not through the Docling MCP server. Cloud AI receives extracted document text. Payment-proof uploads are stored without OCR or cloud extraction. Google Fonts supplies Inter; WhatsApp links open prefilled messages without a WhatsApp Business API integration.
 
-## Local Setup
+## Local setup
 
-### 1. Install dependencies (once)
-
-You need **Node.js 24+**, **Python 3.12**, a Telegram test bot token from [BotFather](https://t.me/BotFather), and an [Ollama API key](https://ollama.com/settings/keys).
-
-Open PowerShell in the project folder:
+Run commands from the repository root with Node.js 24+ installed. Python 3.12 is only needed for backend document extraction:
 
 ```powershell
-cd D:\Github\SDC-test
 npm install
-py -3.12 -m venv .venv-telegram
-.venv-telegram/Scripts/python.exe -m pip install -r server/requirements.txt
 ```
 
-If `.venv-telegram` is already set up, reuse it. On macOS/Linux, use `python3.12 -m venv .venv-telegram` and `.venv-telegram/bin/python -m pip install -r server/requirements.txt` instead.
+### Frontend-only demo
 
-### 2. Add your keys to `.env`
-
-Create the file if it does not exist:
-
-```powershell
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-```
-
-Open `.env` and fill in these settings. Keep your existing Telegram token if it is already there:
+Set this in your local `.env`:
 
 ```dotenv
-VITE_TELEGRAM_ENABLED=true
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-OLLAMA_API_KEY=your_ollama_api_key
-OLLAMA_MODEL=gemma4:31b
-DOCLING_PYTHON=.venv-telegram/Scripts/python.exe
-RECEIPT_BENEFICIARY=Kedai Maju Jaya Sdn Bhd
+VITE_BACKEND_ENABLED=false
 ```
 
-- `OLLAMA_API_KEY`: your private key. The backend sends requests to `https://ollama.com/api/chat`.
-- `OLLAMA_MODEL`: use `gemma4:31b` for the direct API. This is the Gemma 4 31B cloud model; do not use the local client's `-cloud` suffix here.
-- `DOCLING_PYTHON`: the OCR environment’s Python executable. On macOS/Linux, use `.venv-telegram/bin/python`.
-- `RECEIPT_BENEFICIARY`: **your receiving bank account name as the seller**, not the buyer’s name. A different name on the receipt requires human review.
+```powershell
+npm run dev
+```
 
-Never commit `.env` or put API keys in `VITE_` variables. The backend reads the keys; the browser does not receive them. Internet access is required for Telegram and Ollama cloud. See [Ollama API documentation](https://docs.ollama.com/cloud).
+Open [localhost:5173](http://localhost:5173). This mode stores records in browser localStorage; backend OCR is unavailable.
 
-### 3. Start the backend — Terminal 1
+### Backend with SQLite and cloud AI
+
+Install Python 3.12 and the OCR dependencies:
 
 ```powershell
-cd D:\Github\SDC-test
+py -3.12 -m venv .venv
+.venv/Scripts/python.exe -m pip install -r server/requirements.txt
+```
+
+Create or edit `.env`, preserving existing credentials and settings:
+
+```dotenv
+DB_CLIENT=sqlite
+VITE_BACKEND_ENABLED=true
+AI_PROVIDER=cloud
+OLLAMA_MODEL=gemma4:31b
+CLOUD_AI_MODEL=gemma4:31b
+OLLAMA_API_KEY=your_ollama_cloud_key
+DOCLING_PYTHON=.venv/Scripts/python.exe
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+Cloud mode needs an available model and valid cloud credentials; it does not require a local Ollama server. For local inference, use the configuration in the [backend guide](server/README.md).
+
+Start these in separate terminals:
+
+```powershell
 npm run server
 ```
 
-Leave this terminal open. It should show:
-
-```text
-Local Telegram demo API: http://127.0.0.1:8787
+```powershell
+npm run dev
 ```
 
-The backend handles Telegram, OCR, invoice updates and Ollama API requests. The first receipt can take longer while OCR models initialize or download.
+The frontend runs at [localhost:5173](http://localhost:5173); the backend defaults to `127.0.0.1:8787`. Vite proxies `/api` to the backend. The first Docling conversion may download models. Restart the relevant process after changing environment settings.
 
-### 4. Start the frontend — Terminal 2
+### MariaDB with Laragon or XAMPP
+
+Start your database server and configure a dedicated demo database and account:
+
+```dotenv
+DB_CLIENT=mariadb
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=nudgewise_db
+DB_USER=nudgewise_app
+DB_PASSWORD=your_database_password
+```
+
+Keep the backend/frontend and OCR settings above as needed, then run:
 
 ```powershell
-cd D:\Github\SDC-test
-npm run dev -- --host 127.0.0.1 --strictPort
+npm run db:check
+npm run server
 ```
 
-Open [Dashboard](http://127.0.0.1:5173/#/dashboard) or [Action Center](http://127.0.0.1:5173/#/action-center). Keep both terminals open.
+The credentials must match an actual database account; a blank password only works if that account permits it. Node connects directly to the database, independently of Laragon/phpMyAdmin. The adapter stores authoritative state and original evidence and updates relational projection tables.
 
-**Next time:** you only need the two startup commands above. No `ollama serve`, model download or local Ollama sign-in is needed.
+The `database/BACKUP_V*.sql` files are database exports, not incremental migrations. They contain database/table drop statements; importing them can replace existing data.
 
-### 5. Connect Telegram and try it
+See the [backend setup and troubleshooting guide](server/README.md) for database permissions, AI modes, platform-specific Python paths and deployment settings. `npm start` builds and serves the frontend through the backend. Hosted/shared access requires the demo access settings described there.
 
-1. Send `/start` in a private chat with your bot. It replies with your chat ID.
-2. In **Action Center → Link a test customer**, select the customer whose invoice you are testing and enter that ID. One chat can belong to only one customer.
-3. Approve that customer’s invoice reminder, then click **Send to Telegram**. Use **Demo Controls → Run Invoice Check** to prepare eligible reminders if needed.
-4. Reply to the invoice message with a synthetic PDF/image receipt or a message such as “I will pay by the end of the week.”
-5. Check **Customer Responses** and **Needs your attention**. Sellers confirm proposed dates and review payment claims. An exact receipt match can settle a synthetic invoice automatically.
+## Verification
 
-The buyer’s chat must be explicitly linked; seeded chat IDs are sample values. For detailed matching rules, receipt fixtures and review actions, see [the integration guide](server/README.md).
+```powershell
+npm run typecheck
+npm run build
+npm run test:logic
+npm run test:workflow
+npm run test:quick-sale
+npm run test:settlement
+npm run test:pdf
+npm run test:settings
+npm run test:mariadb
+npm run test:ui
+npm run test:demo-rag
+```
 
-### Stop or restart
+Additional customer, PO, backend and AI suites are listed in `package.json` and the backend guide. Synthetic/mock integration tests do not independently prove that live OCR, cloud inference or a real database installation is working.
 
-Press **Ctrl+C** in the relevant terminal. After editing `.env`, stop and restart the backend. If you changed `VITE_TELEGRAM_ENABLED`, restart the frontend too. If an agent started the backend, ask it to stop or restart that process before starting a second copy.
+## Project structure
 
-### Common problems
+```text
+src/
+  views/             Pages: dashboard, orders, invoices, quick sale, settings
+  components/        Customer intake, order workspace, invoice details, documents
+  lib/               Sales, settlement, reminder, customer and persistence rules
+  services/          Frontend-to-backend commands and AI requests
+  presentation/      Order stages, labels and review messages
+  composables/       Shared reactive store access
+  router/            Routes and page navigation
+server/              HTTP API, database adapters, OCR worker and AI integration
+tests/               Regression suites and synthetic fixtures
+docs/                Workflow manual, project map and technical guides
+database/            SQL export and database materials
+output/pdf/          Fictional buyer PO for manual demos
+submission/          Competition submission evidence
+graphify-out/        Generated code map (snapshot; confirm against source)
+```
 
-| Problem | Fix |
+## Documentation
+
+| Need | Guide |
 | --- | --- |
-| Local API unavailable | Start `npm run server` in Terminal 1. |
-| Missing Ollama key / access denied | Set a valid `OLLAMA_API_KEY` in `.env` and restart the backend. |
-| Ollama API request fails | Check internet access, account limits and `OLLAMA_MODEL=gemma4:31b`. |
-| Bot does not reply | Check `TELEGRAM_BOT_TOKEN`, restart the backend, and check polling errors in Action Center. Use a test bot without a webhook. |
-| Seeded chat ID / chat already linked | Link the correct customer. If your ID is already linked to Ahmad, test Ahmad’s invoice. |
-| Recipient name differs | Check the receipt recipient against `RECEIPT_BENEFICIARY`. It is the seller’s account name. |
-| OCR fails | Check Python 3.12 and `DOCLING_PYTHON`; install `server/requirements.txt` in that environment. |
-| Port already in use | Stop the existing frontend/backend in its terminal, or ask the agent that started it. |
+| Use the application | [Customer and order workflow](docs/customer-order-workflow.md) |
+| Configure the API, database, OCR or AI | [Backend setup and troubleshooting](server/README.md) |
+| Find code and related tests | [Project map](docs/project-map.md) |
+| Explore code relationships | [Interactive Graphify map](graphify-out/graph.html) (download and open locally); [map report](graphify-out/GRAPH_REPORT.md) |
+| Run on Replit | [Replit hosting](docs/replit.md) |
+| Understand assistant rendering | [Markdown rendering and attribution](docs/assistant-markdown.md) |
+| Review proposed email work | [Email workflow proposal (not implemented)](docs/email-mvp-plan.md) |
 
-### Optional: frontend only
+### Refresh the code map
 
-Set `VITE_TELEGRAM_ENABLED=false` in `.env`, then run only the frontend command. This mode uses browser storage and simulated AI; Telegram mode uses separate SQLite data in `.local-data/`.
-
-### Checks
+With `graphifyy` installed in your Python environment, run from the repository root:
 
 ```powershell
-npm run test:logic
-npm run test:telegram
-npm run build
+python graphify-out/rebuild.py
 ```
 
-Optional: `npm run test:telegram:live` uses real OCR and your Ollama API key with synthetic fixtures. It mocks Telegram delivery, so no messages are sent.
+This refreshes `graph.html`, `graph.json`, `GRAPH_REPORT.md` and `coverage.json` in `graphify-out/`. The map indexes code relationships and documentation headings; verify runtime behavior in the source and tests. Secrets, runtime data, dependencies, builds and binary fixtures are excluded. See the [project map](docs/project-map.md#map-boundaries) for coverage limits.
 
-Keep this prototype on localhost and use synthetic financial records. AI and receipts cannot verify that bank funds arrived.
+## Prototype limits
 
-## Project Structure
+Reminder delivery is simulated. Email delivery and live payment-provider verification are not implemented. The application is not an integrated card terminal or statutory e-invoice submission service. A receipt image, pending transfer or OCR result does not prove that funds settled.
 
-```text
-SDC-MYInvoice/
-├── index.html
-├── package.json
-├── package-lock.json
-├── vite.config.ts
-├── tailwind.config.js
-├── tsconfig.json
-├── tsconfig.server.json
-├── server/                     # local API, Docling worker and integration guide
-├── .env.example                # settings template; real .env stays private
-├── tsconfig.logic-tests.json
-├── src/
-│   ├── main.ts
-│   ├── App.vue
-│   ├── index.css
-│   ├── router/index.ts
-│   ├── views/
-│   │   ├── DashboardView.vue
-│   │   ├── ActionCenterView.vue
-│   │   └── AiAssistantView.vue
-│   ├── components/
-│   │   ├── AppSidebar.vue
-│   │   ├── AppHeader.vue
-│   │   ├── InvoiceDetailDrawer.vue
-│   │   ├── DemoControls.vue
-│   │   ├── StatusBadge.vue
-│   │   └── BaseModal.vue
-│   ├── services/commands.ts    # browser-to-backend commands
-│   ├── composables/useDemoStore.ts
-│   └── lib/
-│       ├── data.ts               # data access compatibility
-│       ├── store.ts              # synthetic seed and persistence adapter
-│       ├── receipts.ts           # invoice/receipt matching
-│       ├── replyAnalysis.ts      # validated reply fields and date resolution
-│       ├── attention.ts          # shared dashboard/review queue
-│       ├── actions.ts            # invoice/reminder actions
-│       ├── reminderEngine.ts     # checkpoint and hold rules
-│       ├── priorityEngine.ts     # customer follow-up priorities
-│       ├── aiService.ts          # simulated assistant
-│       └── format.ts
-├── tests/
-│   ├── telegram.test.cjs
-│   ├── telegram-live.cjs
-│   ├── fixtures/
-│   ├── logic.test.cjs
-│   └── setup-test-build.cjs
-├── PHASE_1_2_CHANGELOG.md
-├── tech_stack.md
-├── LICENSE
-└── README.md
-```
+Demo roles and the shared access mechanism are not production user authentication. Use synthetic contacts and transactions. Keep `.env`, API keys, database backups, original business documents, local environments and generated build folders out of commits.
 
-The project may also include other repository metadata such as `.codex/` and `.gitignore`. Do not commit `node_modules/`, `dist/`, `.test-build/`, `.server-build/`, `.local-data/`, `.venv-telegram/`, or `.env` files.
+## License and attribution
 
-## Development and Contribution
-
-For a shared repository, pull your team's latest changes before starting work. Prefer a feature branch and pull request rather than having everyone push directly to `main`:
-
-```bash
-cd ~/SDC-MYInvoice
-git pull --ff-only origin main
-git switch -c feature/your-change
-# edit and test your code
-npm run test:logic
-npm run build
-git add .
-git commit -m "Describe your change"
-git push -u origin feature/your-change
-```
-
-Before staging or pushing, check that no `.env`, credentials, personal data, or build artifacts are included.
-
-## Hackathon Progress and Submission
-
-- [x] Vue demo dashboard, invoice views, and local activity history.
-- [x] Local demo clock, reset, and simulated payments.
-- [x] Phase 1 reminder/approval safeguards implemented in demo logic.
-- [x] Phase 2 rule-based customer priority classification implemented.
-- [ ] Full browser regression and complete v1.1 acceptance testing.
-- [x] Local SQLite backend for Telegram integration.
-- [ ] Production database and authenticated server-side permissions.
-- [x] Local seller-approved Telegram delivery and manually linked test chats.
-- [ ] Production customer onboarding and delivery handling.
-- [x] Direct Ollama cloud API with Gemma 4, receipt OCR, customer-reply classification and synthetic integration tests.
-- [ ] Hosted inference and production acceptance testing.
-- [ ] Simulated Orbyte connector interface and second-business isolation demonstration.
-- [ ] Replit and RunPod proof of use, if required by the submission rules.
-- [ ] Slides, demo video, and final submission documents.
-- [ ] Verify documentation and GitHub repository are up to date.
-
-See [`PHASE_1_2_CHANGELOG.md`](PHASE_1_2_CHANGELOG.md) for the implementation notes. For the full requirements and acceptance criteria, refer to the team's NudgeWise v1.1 requirements document.
-
-## License
-
-This project is licensed under the [Apache License 2.0](LICENSE).
+The repository contains the [Apache License 2.0](LICENSE). Third-party libraries, fonts, runtimes and model weights retain their respective licenses. Preserve applicable upstream license and notice files when distributing them. Markdown renderer attribution is recorded in [the rendering guide](docs/assistant-markdown.md).

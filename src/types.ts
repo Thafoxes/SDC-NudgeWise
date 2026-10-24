@@ -9,6 +9,13 @@ export interface Business {
   id: string;
   name: string;
   display_name: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
+  salesperson_name?: string;
+  settings_initialized?: boolean;
+  payment_terms?: string;
+  quotation_validity_days?: number;
   currency: string;
   timezone: string;
 }
@@ -31,19 +38,32 @@ export interface Customer {
   email: string | null;
   /** Language for reminders: 'en' | 'ms' | 'zh'. Missing means English. */
   preferred_language?: 'en' | 'ms' | 'zh' | null;
+  address?: string | null;
 }
 
+export interface FinalReceipt {
+  number:string; issued_at:string; issued_by:string; verification_note:string; financial_key:string;
+  invoice_amount:number; total_debits:number; total_credits:number; total_paid:number;
+  payments:Pick<Payment,'id'|'amount'|'payment_date'|'method'|'reference'|'evidence_id'>[];
+}
 export interface Invoice {
+  currency?: string;
   id: string;
   business_id: string;
   customer_id: string;
   invoice_number: string;
+  purchase_order_id?: string;
+  quotation_id?: string;
+  prepared_by?: string;
+  final_receipt?: FinalReceipt;
   invoice_amount: number;
   issue_date: string;
   due_date: string;
   status: InvoiceStatus;
   labels: string[];
   dispute_active: boolean;
+  /** Retain the new-order settlement rule after the dispute is resolved. */
+  settlement_required?: boolean;
   verification_hold: boolean;
   promise_to_pay_date: string | null;
   promise_confirmed: boolean;
@@ -55,6 +75,7 @@ export interface Invoice {
 export interface Payment {
   id: string;
   invoice_id: string;
+  evidence_id?: string;
   business_id: string;
   amount: number;
   payment_date: string;
@@ -62,6 +83,65 @@ export interface Payment {
   reference: string | null;
   verification_status: VerificationStatus;
   created_at: string;
+}
+
+export interface OrderBlocker {
+  invoice_id: string;
+  invoice_number: string;
+  balance: number;
+  reason: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  business_id: string;
+  customer_id: string;
+  reference: string;
+  details?: PurchaseOrderDetails;
+  status: 'draft' | 'approved';
+  created_at: string;
+  source_mode?: 'manual' | 'chat_screenshot' | 'uploaded_po' | 'quick_sale';
+  completed_at?: string;
+  completed_by?: string;
+  completion_key?: string;
+  approved_at?: string;
+  approved_by?: string;
+  override?: { reason: string; actor: string; approved_at: string; blockers: OrderBlocker[];
+    total_mismatch?: { calculated: number | null; printed: number } };
+}
+
+export interface PurchaseOrderItem {
+  name: string;
+  code: string;
+  quantity: number | null;
+  unit_price: number | null;
+  discount: number | null;
+}
+
+export interface PurchaseOrderDetails {
+  order_date: string;
+  delivery_date: string;
+  currency: string;
+  buyer_name: string;
+  buyer_address: string;
+  buyer_phone: string;
+  buyer_email: string;
+  supplier_name: string;
+  supplier_address: string;
+  supplier_phone: string;
+  supplier_email: string;
+  delivery_address: string;
+  delivery_phone: string;
+  attention: string;
+  payment_terms: string;
+  requested_by: string;
+  document_approved_by: string;
+  department: string;
+  document_status: string;
+  notes: string;
+  items: PurchaseOrderItem[];
+  document_total: number | null;
+  evidence_id?: string;
 }
 
 export interface Credit {
@@ -146,6 +226,7 @@ export interface Notification {
 }
 
 export interface AiConversation {
+  sources?: {id:string;title:string;url:string}[];
   id: string;
   business_id: string;
   user_id: string | null;
@@ -166,6 +247,7 @@ export interface InvoiceWithCustomer extends Invoice {
   outstanding_balance: number;
   total_paid: number;
   total_credits: number;
+  total_debits?: number;
   days_overdue: number;
   is_partially_paid: boolean;
 }

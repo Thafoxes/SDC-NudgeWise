@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Search, Eye, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Search, Eye, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-vue-next';
 import StatusBadge from '@/components/StatusBadge.vue';
 import InvoiceDetailDrawer from '@/components/InvoiceDetailDrawer.vue';
 import { useDemoStore } from '@/composables/useDemoStore';
@@ -11,14 +11,22 @@ import type { CustomerPriority, PriorityLevel } from '@/lib/priorityEngine';
 import { formatMYR, formatDate, sumMoney } from '@/lib/format';
 import { getDerivedLabelChips, formatShortPriorityReason, plural } from '@/presentation/display';
 import type { InvoiceWithCustomer } from '@/types';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { LANGS, customerLang, type Lang } from '@/lib/reminderTemplates';
-import { setCustomerLanguage } from '@/services/commands';
+import { setCustomerLanguage, updateCustomer, deleteCustomer } from '@/services/commands';
+import CustomerIntake from '@/components/CustomerIntake.vue';
+import { getOrderEligibility } from '@/lib/customerOrders';
 
 const { data, refreshStore } = useDemoStore();
 const currentUser = computed(() => data.value.users.find(u => u.id === DEMO_SELLER_ID)!);
 const currentBusiness = computed(() => data.value.businesses.find(b => b.id === DEMO_BUSINESS_ID));
 const route = useRoute();
+const router = useRouter();
+const recordId = computed(() => typeof route.params.id === 'string' ? route.params.id : '');
+const recordMode = computed(() => route.params.mode === 'edit' ? 'edit' : 'view');
+const recordPage = computed(() => !!recordId.value);
+const recordCustomer = computed(() => data.value.customers.find(c => c.id === recordId.value && c.business_id === DEMO_BUSINESS_ID));
+watch([recordId, recordMode], () => { if (recordId.value && recordMode.value === 'edit') editCustomer(recordId.value); }, { immediate: true });
 const today = computed(() => data.value.demoState.simulated_date);
 
 const invoices = computed(() =>
@@ -72,6 +80,12 @@ function langOf(customerId: string): Lang {
   return customerLang(data.value.customers.find(c => c.id === customerId));
 }
 const langNotice = ref('');
+const intakeCustomerId = ref<string | null>(null);
+const intakeCustomer = computed(() => data.value.customers.find(customer => customer.id === intakeCustomerId.value));
+const intakeEligibility = computed(() => {
+  void data.value;
+  return intakeCustomerId.value ? getOrderEligibility(intakeCustomerId.value, DEMO_BUSINESS_ID) : null;
+});
 let langTimer: ReturnType<typeof setTimeout> | undefined;
 async function changeLang(customerId: string, name: string, event: Event) {
   const lang = (event.target as HTMLSelectElement).value;
@@ -84,6 +98,25 @@ async function changeLang(customerId: string, name: string, event: Event) {
   langTimer = setTimeout(() => (langNotice.value = ''), 4000);
   refreshStore();
 }
+const managingCustomer=ref<string|null>(null);
+const customerBusy=ref(false);
+const customerError=ref('');
+const customerNotice=ref('');
+const customerEdit=ref({name:'',phone:'',email:'',address:''});
+function editCustomer(id:string){const c=data.value.customers.find(c=>c.id===id);if(!c)return;
+  managingCustomer.value=id;customerError.value='';customerNotice.value='';customerEdit.value={name:c.name,phone:c.phone||'',email:c.email||'',address:c.address||''};}
+async function saveCustomerEdit(){if(!managingCustomer.value||customerBusy.value)return;
+  customerBusy.value=true;customerError.value='';
+  try{const r=await updateCustomer(managingCustomer.value,{...customerEdit.value},currentUser.value.name,currentUser.value.role,DEMO_BUSINESS_ID);
+    if(!r.success)throw new Error(r.error||'Could not update customer');const savedId=managingCustomer.value;refreshStore();managingCustomer.value=null;customerNotice.value='Customer updated.';await router.push(`/customers/${encodeURIComponent(savedId)}/view`);
+  }catch(e){customerError.value=e instanceof Error?e.message:'Could not update customer';}finally{customerBusy.value=false;}}
+async function removeCustomer(id:string){const c=data.value.customers.find(c=>c.id===id);if(!c||customerBusy.value||!window.confirm(`Delete customer ${c.name}? This cannot be undone.`))return;
+  customerBusy.value=true;customerError.value='';
+  try{const r=await deleteCustomer(id,currentUser.value.name,currentUser.value.role,DEMO_BUSINESS_ID);
+    if(!r.success)throw new Error(r.error||'Could not delete customer');if(managingCustomer.value===id)managingCustomer.value=null;
+    if(recordPage.value) await router.push('/customers');
+    refreshStore();customerNotice.value=`Customer ${c.name} deleted.`;
+  }catch(e){customerError.value=e instanceof Error?e.message:'Could not delete customer';}finally{customerBusy.value=false;}}
 function outstandingFor(customerId: string) {
   return sumMoney(invoices.value.filter(i => i.customer_id === customerId).map(i => i.outstanding_balance));
 }
@@ -91,6 +124,25 @@ function outstandingFor(customerId: string) {
 
 <template>
   <div class="space-y-5">
+    <div v-if="recordPage" class="space-y-5">
+      <div class="flex items-center justify-between"><button class="outline-btn" @click="router.push('/customers')">← Back to Customers</button><div class="flex gap-2" v-if="recordCustomer"><button v-if="recordMode === 'view'" class="primary-btn" @click="router.push(`/customers/${encodeURIComponent(recordId)}/edit`)">Edit Customer</button><button v-else class="outline-btn" @click="router.push(`/customers/${encodeURIComponent(recordId)}/view`)">View Details</button></div></div>
+      <section v-if="recordMode === 'view' && recordCustomer" class="card p-5 space-y-4"><h2 class="text-lg font-semibold">{{ recordCustomer.name }}</h2><dl class="grid gap-4 sm:grid-cols-2 text-sm"><div><dt class="text-slate-500">Phone</dt><dd>{{recordCustomer.phone || '—'}}</dd></div><div><dt class="text-slate-500">Email</dt><dd>{{recordCustomer.email || '—'}}</dd></div><div><dt class="text-slate-500">Address</dt><dd>{{recordCustomer.address || '—'}}</dd></div><div><dt class="text-slate-500">Outstanding balance</dt><dd>{{formatMYR(outstandingFor(recordId))}}</dd></div></dl></section>
+      <p v-if="!recordCustomer" class="card p-5 text-rose-700">Customer not found.</p>
+      <p v-if="customerError" role="alert" class="text-rose-700">{{customerError}}</p>
+      <p v-if="customerNotice" role="status" class="text-emerald-700">{{customerNotice}}</p>
+      <section v-if="recordMode === 'edit' && recordCustomer && managingCustomer" class="card p-5 space-y-4"><h2 class="font-semibold">Edit Customer — {{recordCustomer.name}}</h2><div class="grid gap-3 sm:grid-cols-2"><label class="text-sm">Name *<input v-model="customerEdit.name" class="form-input" required /></label><label class="text-sm">Phone *<input v-model="customerEdit.phone" class="form-input" required /></label><label class="text-sm">Email<input v-model="customerEdit.email" type="email" class="form-input" /></label><label class="text-sm">Address<input v-model="customerEdit.address" class="form-input" /></label></div><button class="primary-btn" :disabled="customerBusy" @click="saveCustomerEdit">Save changes</button></section>
+    </div>
+    <template v-else>
+    <CustomerIntake @selected="intakeCustomerId = $event" />
+    <p v-if="customerError" role="alert" class="text-sm text-rose-700">{{customerError}}</p><p v-if="customerNotice" role="status" class="text-sm text-emerald-700">{{customerNotice}}</p>
+    <section v-if="false && managingCustomer" class="card p-4 space-y-3" aria-label="Edit customer"><div class="flex justify-between"><h2 class="font-semibold">Edit customer</h2><button class="outline-btn" @click="managingCustomer=null">Close</button></div>
+      <div class="grid gap-3 sm:grid-cols-2"><label class="text-sm">Name <span class="text-rose-600">*</span><input v-model="customerEdit.name" class="form-input" maxlength="120" /></label><label class="text-sm">Phone <span class="text-rose-600">*</span><input v-model="customerEdit.phone" class="form-input" placeholder="0123456789" /></label><label class="text-sm">Email<input v-model="customerEdit.email" type="email" class="form-input" placeholder="name@company.com" /></label><label class="text-sm">Address<input v-model="customerEdit.address" class="form-input" /></label></div><button class="primary-btn" :disabled="customerBusy" @click="saveCustomerEdit">Save changes</button>
+    </section>
+    <div v-if="intakeCustomer && intakeEligibility" class="rounded-lg border p-4 text-sm" :class="intakeEligibility.allowed ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'">
+      <p class="font-semibold">{{ intakeCustomer.name }} · {{ intakeEligibility.allowed ? 'Eligible for a new order' : 'Order hold' }}</p>
+      <p v-if="!intakeEligibility.allowed" class="mt-1">Previous disputed invoices require resolution and settlement, or a seller override for the specific PO.</p>
+      <RouterLink :to="{ path: '/orders', query: { customer: intakeCustomer.id } }" class="mt-2 inline-block font-medium underline">Review purchase order eligibility</RouterLink>
+    </div>
     <p v-if="langNotice" role="status" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{{ langNotice }}</p>
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p class="text-sm text-slate-600">Follow-up priority is rule-based and explainable — it is not a credit score and never bypasses reminder approval.</p>
@@ -134,6 +186,7 @@ function outstandingFor(customerId: string) {
               <option v-for="l in LANGS" :key="l.id" :value="l.id">{{ l.label }}</option>
             </select>
           </label>
+          <div class="mt-2 flex gap-2"><button class="rounded p-1.5 text-slate-700" :aria-label="`View customer ${p.customerName}`" @click="router.push(`/customers/${encodeURIComponent(p.customerId)}/view`)"><Eye class="h-4 w-4"/></button><button class="rounded p-1.5 text-blue-700" :aria-label="`Edit customer ${p.customerName}`" @click="router.push(`/customers/${encodeURIComponent(p.customerId)}/edit`)"><Pencil class="h-4 w-4"/></button><button class="rounded p-1.5 text-rose-600" :aria-label="`Delete customer ${p.customerName}`" @click="removeCustomer(p.customerId)"><Trash2 class="h-4 w-4"/></button></div>
           <button
             class="mt-1.5 text-[13px] font-medium text-blue-700"
             :aria-expanded="expandedPriority === p.customerId"
@@ -158,7 +211,7 @@ function outstandingFor(customerId: string) {
               <th class="px-4 py-2.5">Priority</th>
               <th class="px-4 py-2.5">Reason</th>
               <th class="px-4 py-2.5">Reminder language</th>
-              <th class="px-4 py-2.5 text-right">Details</th>
+              <th class="px-4 py-2.5 text-right">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -184,12 +237,7 @@ function outstandingFor(customerId: string) {
                   </select>
                 </td>
                 <td class="px-4 py-2 text-right">
-                  <button
-                    class="text-slate-500 hover:text-slate-900 text-[13px] font-medium"
-                    @click="expandedPriority = expandedPriority === p.customerId ? null : p.customerId"
-                  >
-                    {{ expandedPriority === p.customerId ? 'Hide' : 'Explain' }}
-                  </button>
+                  <div class="flex justify-end gap-2"><button class="rounded p-1.5 text-slate-700 hover:bg-slate-100" :aria-label="`View customer ${p.customerName}`" title="View customer" @click="router.push(`/customers/${encodeURIComponent(p.customerId)}/view`)"><Eye class="h-4 w-4"/></button><button class="rounded p-1.5 text-blue-700 hover:bg-blue-50" :aria-label="`Edit customer ${p.customerName}`" title="View / edit customer" @click="router.push(`/customers/${encodeURIComponent(p.customerId)}/edit`)"><Pencil class="h-4 w-4"/></button><button class="rounded p-1.5 text-rose-600 hover:bg-rose-50" :aria-label="`Delete customer ${p.customerName}`" title="Delete customer" @click="removeCustomer(p.customerId)"><Trash2 class="h-4 w-4"/></button></div>
                 </td>
               </tr>
               <tr v-if="expandedPriority === p.customerId" class="bg-slate-50/80">
@@ -214,6 +262,7 @@ function outstandingFor(customerId: string) {
       </div>
     </section>
 
+    </template>
     <InvoiceDetailDrawer
       :invoice="selectedInvoice"
       :open="drawerOpen"

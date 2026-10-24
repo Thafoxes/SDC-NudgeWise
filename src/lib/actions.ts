@@ -3,7 +3,7 @@ import type { FollowUpAction, Invoice } from '@/types';
 import {
   getStore, computeStatus, addPayment, addActivity, addNotificationRecord,
   updateInvoice, updateFollowUp, addCustomerResponse, DEMO_BUSINESS_ID,
-  updateCustomerResponse, update, computeInvoiceWithCustomer, DEMO_BUSINESS_NAME,
+  updateCustomerResponse, update, computeInvoiceWithCustomer, DEMO_BUSINESS_NAME, debitTotal,
 } from './store';
 import { isLang, customerLang, LANGS } from './reminderTemplates';
 import { validDate, resolvePromiseDate, responseFlags, type ReplyAnalysis } from './replyAnalysis';
@@ -30,7 +30,7 @@ function balanceForInvoice(invoice: Invoice) {
   const data = getStore();
   const payments = data.payments.filter(p => p.business_id === invoice.business_id && p.invoice_id === invoice.id && p.verification_status === 'recorded');
   const credits = data.credits.filter(c => c.business_id === invoice.business_id && c.invoice_id === invoice.id);
-  return subtractMoney(subtractMoney(invoice.invoice_amount, sumMoney(payments.map(p => p.amount))), sumMoney(credits.map(c => c.amount)));
+  return subtractMoney(subtractMoney(sumMoney([invoice.invoice_amount, debitTotal(data, invoice)]), sumMoney(payments.map(p => p.amount))), sumMoney(credits.map(c => c.amount)));
 }
 function cancelAction(fu: FollowUpAction, reason: string): void {
   updateFollowUp(fu.id, {
@@ -62,7 +62,7 @@ function checkEligibility(fu: FollowUpAction, inv: Invoice, now: string): string
 
 export function recordPayment(
   invoiceId: string, amount: number, paymentDate: string, method: string,
-  reference: string, actorName: string, businessId: string = DEMO_BUSINESS_ID,
+  reference: string, actorName: string, businessId: string = DEMO_BUSINESS_ID, evidenceId?:string,
 ): ActionResult & { newStatus?: string } {
   const inv = invoiceForBusiness(invoiceId, businessId);
   if (!inv) return { success: false, error: 'Invoice not found for this business' };
@@ -75,9 +75,11 @@ export function recordPayment(
   if (toCents(amount) > toCents(balanceForInvoice(inv)))
     return { success: false, error: 'Payment exceeds outstanding balance; review instead of posting an excess payment' };
 
-  addPayment(invoiceId, amount, paymentDate, method, reference, 'recorded');
+  if(evidenceId&&!getStore().orderEvidence.some(e=>e.id===evidenceId&&e.business_id===businessId&&e.purchase_order_id===inv.purchase_order_id&&e.kind==='payment_proof'))
+    return {success:false,error:'Payment proof must be attached to this invoice’s order in this workspace'};
+  addPayment(invoiceId, amount, paymentDate, method, reference, 'recorded',evidenceId);
   addActivity(businessId, invoiceId, 'payment_recorded', actorName, 'seller',
-    `Synthetic payment of RM${amount.toFixed(2)} recorded for ${inv.invoice_number}`);
+    `Seller-recorded payment of RM${amount.toFixed(2)} recorded for ${inv.invoice_number}`);
   // Any changed invoice ledger invalidates drafts and previous approvals; new checkpoint
   // cannot silently regenerate a cancelled action, seller must explicitly revisit it.
   invalidateOpenActions(invoiceId, businessId, 'Invoice ledger changed after reminder was drafted');

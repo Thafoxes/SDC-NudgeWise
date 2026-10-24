@@ -1,4 +1,4 @@
-import { telegramEnabled } from '@/services/commands';
+import { backendEnabled } from '@/services/commands';
 import { templateReminder, rewriteProblem, type ReminderFacts, type Tone, type Lang } from '@/presentation/toneStudio';
 
 export interface RewriteResult {
@@ -14,7 +14,7 @@ export interface RewriteResult {
  */
 export async function rewriteReminder(followUpId: string, facts: ReminderFacts, tone: Tone, lang: Lang): Promise<RewriteResult> {
   const fallback = (note: string): RewriteResult => ({ text: templateReminder(facts, tone, lang), source: 'template', note });
-  if (!telegramEnabled) return fallback('AI writing is available when the backend is running');
+  if (!backendEnabled) return fallback('AI writing is available when the backend is running');
   try {
     const response = await fetch('/api/command', {
       method: 'POST',

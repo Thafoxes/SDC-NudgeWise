@@ -50,23 +50,9 @@ pnpm-debug.log*
 /.test-build
 /.env_folder
 /.codex
-# Dependencies
-node_modules/
 
-# Build outputs
-dist/
-.test-build/
-.server-build/
-.local-data/
-coverage/
-
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Logs
-*.log
-
-# System files
-.DS_Store
+# Scratch previews and generated reports
+/tmp/
+/graphify-out/memory/
+/output/pdf/*
+!/output/pdf/demo-buyer-purchase-order.pdf

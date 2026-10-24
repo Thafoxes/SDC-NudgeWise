@@ -1,0 +1,5 @@
+# Rebuild caches and machine-specific Graphify state are local.
+cache/
+.graphify*
+manifest.json
+__pycache__/

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { LayoutDashboard, Zap, Sparkles, Menu, X, FileText, Users } from 'lucide-vue-next';
+import { LayoutDashboard, Zap, Sparkles, Menu, X, FileText, Users, ClipboardList, Settings } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useDemoStore } from '@/composables/useDemoStore';
 import { DEMO_BUSINESS_ID, DEMO_SELLER_ID } from '@/lib/store';
@@ -13,8 +13,10 @@ const links = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/invoices', label: 'Invoices', icon: FileText },
   { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/orders', label: 'Orders', icon: ClipboardList },
   { to: '/action-center', label: 'Action Center', icon: Zap },
   { to: '/ai-assistant', label: 'AI Assistant', icon: Sparkles },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ];
 </script>
 <template>
@@ -22,7 +24,7 @@ const links = [
   <div v-if="mobileOpen" class="fixed inset-0 z-40 bg-[#162A50]/30 lg:hidden" @click="mobileOpen=false"></div>
   <aside class="fixed left-0 top-0 z-40 h-full w-[240px] flex flex-col border-r border-orbyte-border bg-orbyte-sidebar transition-transform duration-200" :class="mobileOpen?'translate-x-0':'-translate-x-full lg:translate-x-0'">
     <div class="flex items-center justify-between px-5 pt-6 pb-4">
-      <div><h1 class="text-lg font-bold tracking-tight">NudgeWise</h1><p class="text-xs text-orbyte-muted mt-1">Invoice Follow-Up Assistant</p></div>
+      <div><h1 class="text-lg font-bold tracking-tight">NudgeWise</h1><p class="text-xs text-orbyte-muted mt-1">Order-to-Payment Assistant</p></div>
       <button class="lg:hidden" aria-label="Close navigation" @click="mobileOpen=false"><X class="w-5 h-5" /></button>
     </div>
     <div class="mx-3 rounded-lg border border-orbyte-border bg-slate-50 p-3"><p class="text-sm font-semibold">{{business?.name}}</p><p class="mt-1 text-xs text-orbyte-muted">{{seller?.name}} · Seller demo</p></div>

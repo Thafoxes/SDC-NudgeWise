@@ -3,7 +3,7 @@
  * Not a credit score or prediction; never authorises sending a reminder.
  */
 import type { Customer, Invoice, Payment, Credit } from '@/types';
-import { DEMO_BUSINESS_ID, getStore } from './store';
+import { DEMO_BUSINESS_ID, getStore, debitTotal } from './store';
 import { daysOverdue, toCents } from './format';
 
 export type PriorityLevel = 'red' | 'yellow' | 'green' | 'grey';
@@ -32,7 +32,7 @@ export interface CustomerPriority {
 }
 
 /** Calculate settlement date from recorded ledger events, not the `paid` label. */
-function settlementDate(inv: Invoice, payments: Payment[], credits: Credit[], today: string): string | null {
+function settlementDate(inv: Invoice, payments: Payment[], credits: Credit[], today: string, debits = 0): string | null {
   const events = [
     ...payments.filter(p => p.invoice_id === inv.id && p.business_id === inv.business_id && p.verification_status === 'recorded' && p.payment_date <= today)
       .map(p => ({ date: p.payment_date, cents: toCents(p.amount) })),
@@ -42,7 +42,7 @@ function settlementDate(inv: Invoice, payments: Payment[], credits: Credit[], to
   let total = 0;
   for (const event of events) {
     total += event.cents;
-    if (total >= toCents(inv.invoice_amount)) return event.date;
+    if (total >= toCents(inv.invoice_amount) + toCents(debits)) return event.date;
   }
   return null;
 }
@@ -61,7 +61,7 @@ export function calculateCustomerPriorities(
     const valid = own.filter(i => !i.dispute_active && !i.verification_hold);
     const flags = held.map(i => `${i.invoice_number}: ${i.dispute_active ? 'dispute' : 'payment verification'} requires review; excluded from adverse classification`);
     const unsettled = valid.map(inv => {
-      const settled = settlementDate(inv, data.payments, data.credits, currentDate);
+      const settled = settlementDate(inv, data.payments, data.credits, currentDate, debitTotal(data, inv));
       return { inv, settled };
     }).filter(record => !record.settled);
     const overdue = unsettled.filter(({ inv }) => daysOverdue(inv.due_date, currentDate) > 0);
@@ -70,7 +70,7 @@ export function calculateCustomerPriorities(
     const yellowInvoices = overdue.filter(({ inv }) => daysOverdue(inv.due_date, currentDate) >= 1 && daysOverdue(inv.due_date, currentDate) <= 13);
 
     const lastFiveSettled: SettledEvidence[] = valid.flatMap(inv => {
-      const settledDate = settlementDate(inv, data.payments, data.credits, currentDate);
+      const settledDate = settlementDate(inv, data.payments, data.credits, currentDate, debitTotal(data, inv));
       return settledDate ? [{
         invoiceId: inv.id, invoiceNumber: inv.invoice_number, dueDate: inv.due_date,
         settledDate, daysLate: daysOverdue(inv.due_date, settledDate), late: settledDate > inv.due_date,

@@ -9,7 +9,7 @@ const actions = require(path.join(root, 'actions.js'));
 const templates = require(path.join(root, 'reminderTemplates.js'));
 const mem = new Map();
 global.localStorage = { getItem: k => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
-const reset = () => { store.resetStore(); store.setDemoDate('2026-10-20'); };
+const reset = () => { require('./fixtures/load-business-data.cjs')(store); store.setDemoDate('2026-10-20'); };
 const seller = 'Siti Aishah';
 const draftsFor = id => store.getStore().followUpActions.filter(f => f.invoice_id === id && f.checkpoint < 5);
 

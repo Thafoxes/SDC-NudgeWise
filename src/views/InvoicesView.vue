@@ -11,7 +11,7 @@ import type { CustomerPriority, PriorityLevel } from '@/lib/priorityEngine';
 import { formatMYR, formatDate, sumMoney } from '@/lib/format';
 import { getDerivedLabelChips, formatShortPriorityReason, plural } from '@/presentation/display';
 import type { InvoiceWithCustomer } from '@/types';
-import { useRoute } from 'vue-router';
+import { RouterLink,useRoute } from 'vue-router';
 
 const { data } = useDemoStore();
 const currentUser = computed(() => data.value.users.find(u => u.id === DEMO_SELLER_ID)!);
@@ -24,6 +24,10 @@ const invoices = computed(() =>
     .filter(i => i.business_id === currentUser.value.business_id)
     .map(i => computeInvoiceWithCustomer(i, data.value, today.value))
 );
+const outstandingByCurrency=computed(()=>{
+ const totals=new Map<string,number>();for(const i of invoices.value)totals.set(i.currency||'MYR',(totals.get(i.currency||'MYR')||0)+i.outstanding_balance);
+ return [...totals].map(([currency,amount])=>formatMYR(amount,currency)).join(' · ');
+});
 const priorityRecords = computed(() => calculateCustomerPriorities(currentUser.value.business_id, today.value, data.value));
 const priorityMap = computed(() => new Map(priorityRecords.value.map(p => [p.customerId, p])));
 
@@ -44,6 +48,13 @@ function openInvoice(i: InvoiceWithCustomer | null | undefined) {
   selectedId.value = i.id;
   drawerOpen.value = true;
 }
+
+let openedFromQuery='';
+watch(()=>[route.query.invoice,invoices.value],()=>{
+ const id=route.query.invoice;if(typeof id!=='string'){openedFromQuery='';return;}
+ if(id===openedFromQuery)return;const invoice=invoices.value.find(i=>i.id===id);
+ if(invoice){openedFromQuery=id;openInvoice(invoice);}
+},{immediate:true});
 
 // Filters (status can come from the dashboard link, e.g. #/invoices?status=overdue)
 const search = ref('');
@@ -83,7 +94,8 @@ const totals = computed(() => ({
 <template>
   <div class="space-y-5">
     <div class="flex flex-wrap items-end justify-between gap-2">
-      <p class="text-sm text-slate-600">{{ currentBusiness?.name }} · {{ plural(totals.count, 'invoice') }} · {{ formatMYR(totals.outstanding) }} outstanding</p>
+      <p class="text-sm text-slate-600">{{ currentBusiness?.name }} · {{ plural(totals.count, 'invoice') }} · {{ outstandingByCurrency }} outstanding</p>
+      <RouterLink to="/quick-sale" class="primary-btn">New quick sale / invoice</RouterLink>
     </div>
 
     <!-- Invoice Table Section -->
@@ -136,8 +148,8 @@ const totals = computed(() => ({
                 <p class="mt-0.5 font-mono text-[13px] text-slate-500">{{ i.invoice_number }}</p>
               </div>
               <div class="shrink-0 text-right">
-                <p class="text-xs font-semibold text-slate-900 tabular-nums">{{ formatMYR(i.outstanding_balance) }}</p>
-                <p class="text-[12px] text-slate-400 tabular-nums">of {{ formatMYR(i.invoice_amount) }}</p>
+                <p class="text-xs font-semibold text-slate-900 tabular-nums">{{ formatMYR(i.outstanding_balance,i.currency) }}</p>
+                <p class="text-[12px] text-slate-400 tabular-nums">of {{ formatMYR(i.invoice_amount,i.currency) }}</p>
               </div>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -150,6 +162,7 @@ const totals = computed(() => ({
               <span v-if="i.days_overdue > 0" class="font-medium text-rose-600">· {{ i.days_overdue }}d overdue</span>
             </p>
           </button>
+          <a v-if="i.purchase_order_id" :href="`#/orders/${i.purchase_order_id}/view`" class="mx-4 mb-3 inline-block text-xs text-blue-700 underline">View order and items</a>
         </li>
         <li v-if="!pageData.length" class="p-6 text-center text-xs text-slate-400">No invoices match the selected criteria.</li>
       </ul>
@@ -177,9 +190,9 @@ const totals = computed(() => ({
             >
               <td class="px-4 py-2 font-mono font-medium text-slate-900">{{ i.invoice_number }}</td>
               <td class="px-4 py-2 font-medium text-slate-800">{{ i.customer?.name || '—' }}</td>
-              <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ formatMYR(i.invoice_amount) }}</td>
+              <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ formatMYR(i.invoice_amount,i.currency) }}</td>
               <td class="px-4 py-2 text-right tabular-nums font-semibold" :class="i.outstanding_balance > 0 ? 'text-slate-900' : 'text-slate-400'">
-                {{ formatMYR(i.outstanding_balance) }}
+                {{ formatMYR(i.outstanding_balance,i.currency) }}
               </td>
               <td class="px-4 py-2 text-slate-600 tabular-nums">
                 {{ formatDate(i.due_date) }}
@@ -201,6 +214,7 @@ const totals = computed(() => ({
                 </div>
               </td>
               <td class="px-4 py-2 text-right" @click.stop>
+                <a v-if="i.purchase_order_id" :href="`#/orders/${i.purchase_order_id}/view`" class="outline-btn mr-2">View order</a>
                 <button
                   class="text-blue-700 hover:text-blue-800 text-[13px] font-medium inline-flex items-center gap-1"
                   @click="openInvoice(i)"

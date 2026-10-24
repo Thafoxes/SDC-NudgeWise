@@ -1,4 +1,4 @@
-/** Server endpoint for the tone & language studio. Run with: npm run test:telegram */
+/** Server endpoint for the tone & language studio. Run with: npm run test:server */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -20,8 +20,9 @@ function request(backend, body) {
 function fixture(t, chat) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nudgewise-test-'));
   const prompts = [];
-  const api = { telegram: async () => ({}), download: async () => Buffer.from(''), extract: async () => ({}), chat: async messages => { prompts.push(messages); return chat(messages); } };
+  const api = { chat: async messages => { prompts.push(messages); return chat(messages); } };
   const backend = createBackend({ directory, api });
+  require('./fixtures/load-business-data.cjs')(require('../.server-build/lib/store.js'));
   t.after(() => { backend.stop(); backend.db.close(); fs.rmSync(directory, { recursive: true }); });
   return { backend, prompts };
 }
