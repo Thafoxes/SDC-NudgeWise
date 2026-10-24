@@ -68,7 +68,13 @@ async function readDocument(filePath, tables = false) {
   let stdout;
   try {
     ({ stdout } = await run(process.env.DOCLING_PYTHON || 'python', [path.join(__dirname, 'ocr.py'), filePath, ...(tables ? ['--tables'] : [])], { timeout: 180000, maxBuffer: 1024 * 1024, windowsHide: true }));
-  } catch { throw new Error('Docling OCR failed or timed out; check its Python environment'); }
+  } catch (error) {
+    const detail = error?.killed || error?.signal === 'SIGTERM'
+      ? 'timed out'
+      : String(error?.stderr || error?.message || 'unknown OCR error').trim().split(/\r?\n/).pop();
+    console.error(`OCR worker failed: ${detail}`);
+    throw new Error(`Docling OCR failed or timed out: ${detail}`);
+  }
   if (!stdout.trim() || stdout.length > 30000) throw new Error('OCR text is empty or too long');
   return stdout;
 }
